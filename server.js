@@ -34,6 +34,18 @@ app.get(['/', '/admin', '/login'], (req, res, next) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Ensure MongoDB connection for serverless invocations
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    try {
+      await connectDB();
+    } catch (e) {
+      console.error('Database connection error in request:', e.message);
+    }
+  }
+  next();
+});
+
 app.get('/api/health', (req, res) => {
   const mongoose = require('mongoose');
   res.json({

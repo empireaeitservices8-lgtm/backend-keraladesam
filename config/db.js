@@ -1,21 +1,43 @@
 const mongoose = require('mongoose');
 
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
-  try {
-    const mongoUri = process.env.MONGODB_URL || process.env.MONGODB_URI;
-    if (!mongoUri) {
-      throw new Error('Neither MONGODB_URL nor MONGODB_URI is defined in .env');
-    }
-    const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 8000,
-    });
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
-    return conn;
-  } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    console.log(`⚠️ Tip: Make sure MongoDB is running or configure MONGODB_URI in backend/.env`);
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
+  }
+
+  const mongoUri = process.env.MONGODB_URL || process.env.MONGODB_URI;
+  if (!mongoUri) {
+    console.error('Neither MONGODB_URL nor MONGODB_URI is defined in environment variables');
     return null;
   }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 5000,
+    };
+
+    cached.promise = mongoose.connect(mongoUri, opts).then((m) => {
+      console.log(`✅ MongoDB Connected: ${m.connection.host}/${m.connection.name}`);
+      return m;
+    });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (e) {
+    cached.promise = null;
+    console.error('❌ MongoDB Connection Error:', e.message);
+    throw e;
+  }
+
+  return cached.conn;
 };
 
 module.exports = connectDB;
