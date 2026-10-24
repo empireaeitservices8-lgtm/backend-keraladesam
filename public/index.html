@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>കേരളദേശം എഡിറ്റോറിയൽ കൺസോൾ | Kerala Desam Admin & Editor Panel</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Malayalam:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              crimson: '#C8102E',
+              crimsonDark: '#99001A',
+              navy: '#0B1325',
+              navyDark: '#060B14',
+              surface: '#111A2E',
+              surfaceHover: '#16223C',
+              border: '#1F2E4D',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans Malayalam', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      background-color: #060B14;
+      color: #E2E8F0;
+      font-family: 'Inter', 'Noto Sans Malayalam', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0B1325;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #1F2E4D;
+      border-radius: 9999px;
+    }
+    .glass-card {
+      background: rgba(17, 26, 46, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-brand-crimson selection:text-white">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- AUTH WRAPPER (Displayed when not logged in) -->
+  <div id="authSection" class="min-h-screen flex flex-col justify-center items-center p-4 relative overflow-hidden bg-gradient-to-br from-brand-navyDark via-brand-navy to-slate-950">
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-brand-crimson/15 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="w-full max-w-md relative z-10">
+      <!-- Brand Logo / Header -->
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center gap-2 mb-2">
+          <div class="w-10 h-10 rounded-xl bg-brand-crimson flex items-center justify-center font-extrabold text-white text-xl shadow-lg shadow-brand-crimson/30">
+            കേ
+          </div>
+          <span class="text-2xl font-black tracking-tight text-white">കേരളദേശം</span>
+        </div>
+        <p class="text-xs uppercase tracking-widest text-brand-crimson font-semibold">എഡിറ്റോറിയൽ & അഡ്മിൻ കൺസോൾ</p>
+        <p class="text-xs text-slate-400 mt-1">Kerala Desam Editorial Newsroom Suite</p>
+      </div>
+
+      <!-- Login Card -->
+      <div id="loginCard" class="glass-card rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="lock" class="w-5 h-5 text-brand-crimson"></i>
+            ലോഗിൻ ചെയ്യുക
+          </h2>
+          <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/30 text-emerald-400">
+            ● സുരക്ഷിതം
+          </span>
+        </div>
+
+        <!-- Quick Demo Pill -->
+        <div class="mb-5 p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+          <div>
+            <span class="text-slate-300 block font-medium">ഡെമോ അഡ്മിൻ അക്കൗണ്ട്:</span>
+            <span class="text-[11px] text-slate-400 font-mono">admin@keraladesam.com</span>
+          </div>
+          <button type="button" onclick="fillDemoCredentials()" class="px-2.5 py-1 rounded bg-brand-crimson hover:bg-brand-crimsonDark text-white text-[11px] font-bold transition flex items-center gap-1 shadow">
+            <i data-lucide="sparkles" class="w-3 h-3"></i>
+            ഉപയോഗിക്കുക
+          </button>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="loginError" class="hidden mb-4 p-3 rounded-lg bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0"></i>
+          <span id="loginErrorMsg"></span>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">ഔദ്യോഗിക ഇമെയിൽ (Email)</label>
+            <div class="relative">
+              <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none"></i>
+              <input id="loginEmail" type="email" required placeholder="admin@keraladesam.com" class="w-full bg-brand-navyDark border border-brand-border rounded-lg py-2.5 pl-10 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson transition" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">രഹസ്യ പാസ്‌വേഡ് (Password)</label>
+            <div class="relative">
+              <i data-lucide="key" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none"></i>
+              <input id="loginPassword" type="password" required placeholder="••••••••" class="w-full bg-brand-navyDark border border-brand-border rounded-lg py-2.5 pl-10 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson transition" />
+            </div>
+          </div>
+
+          <button id="loginSubmitBtn" type="submit" class="w-full py-2.5 px-4 rounded-lg bg-brand-crimson hover:bg-brand-crimsonDark text-white text-xs font-bold transition shadow-lg shadow-brand-crimson/25 flex items-center justify-center gap-2">
+            <span>പ്രവേശിക്കുക (Login)</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <div class="mt-5 pt-4 border-t border-white/10 text-center">
+          <button type="button" onclick="showRegisterCard()" class="text-xs text-slate-400 hover:text-white transition">
+            പുതിയ എഡിറ്റർ അക്കൗണ്ട് രജിസ്റ്റർ ചെയ്യണോ? <span class="text-brand-crimson font-semibold">രജിസ്റ്റർ</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Register Card -->
+      <div id="registerCard" class="hidden glass-card rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-5 h-5 text-brand-crimson"></i>
+            പുതിയ എഡിറ്റർ രജിസ്ട്രേഷൻ
+          </h2>
+        </div>
+
+        <div id="registerError" class="hidden mb-4 p-3 rounded-lg bg-red-950/80 border border-red-500/50 text-red-200 text-xs flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0"></i>
+          <span id="registerErrorMsg"></span>
+        </div>
+
+        <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">പൂർണ്ണമായ പേര് (Full Name)</label>
+            <input id="regName" type="text" required placeholder="ഉദാ: രാജേഷ് കുമാർ" class="w-full bg-brand-navyDark border border-brand-border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">ഔദ്യോഗിക ഇമെയിൽ (Email)</label>
+            <input id="regEmail" type="email" required placeholder="editor@keraladesam.com" class="w-full bg-brand-navyDark border border-brand-border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">പാസ്‌വേഡ് (Password)</label>
+            <input id="regPassword" type="password" required minlength="6" placeholder="കുറഞ്ഞത് 6 അക്ഷരങ്ങൾ" class="w-full bg-brand-navyDark border border-brand-border rounded-lg py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">പദവി (Role)</label>
+            <select id="regRole" class="w-full bg-brand-navyDark border border-brand-border rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-brand-crimson">
+              <option value="editor">എഡിറ്റർ / റിപ്പോർട്ടർ (Editor)</option>
+              <option value="admin">ചീഫ് അഡ്മിൻ (Chief Admin)</option>
+            </select>
+          </div>
+
+          <button id="regSubmitBtn" type="submit" class="w-full py-2.5 px-4 rounded-lg bg-brand-crimson hover:bg-brand-crimsonDark text-white text-xs font-bold transition shadow-lg shadow-brand-crimson/25 flex items-center justify-center gap-2 mt-2">
+            <span>അക്കൗണ്ട് സൃഷ്ടിക്കുക</span>
+            <i data-lucide="check" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <div class="mt-4 pt-3 border-t border-white/10 text-center">
+          <button type="button" onclick="showLoginCard()" class="text-xs text-slate-400 hover:text-white transition">
+            ഇതിനകം അക്കൗണ്ട് ഉണ്ടോ? <span class="text-brand-crimson font-semibold">ലോഗിൻ ചെയ്യുക</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN CONSOLE (Displayed when logged in) -->
+  <div id="adminApp" class="hidden min-h-screen flex flex-col bg-brand-navyDark text-slate-200">
+    
+    <!-- Top Header Bar -->
+    <header class="sticky top-0 z-40 bg-brand-navy/95 backdrop-blur-md border-b border-brand-border px-4 lg:px-8 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-brand-crimson flex items-center justify-center font-black text-white text-lg shadow-md shadow-brand-crimson/30">
+          കേ
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-white text-base tracking-tight">കേരളദേശം</span>
+            <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-brand-crimson/20 border border-brand-crimson/40 text-brand-crimson font-bold">
+              ADMIN STUDIO
+            </span>
+          </div>
+          <p class="text-[10px] text-slate-400">ഡയറക്റ്റ് ന്യൂസ് റൂം പബ്ലിഷിംഗ് സിസ്റ്റം</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Live Reader Link -->
+        <a id="publicPortalLink" href="http://localhost:3000" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10 transition">
+          <i data-lucide="external-link" class="w-3.5 h-3.5 text-brand-crimson"></i>
+          <span>വാർത്താ പോർട്ടൽ കാണുക</span>
+        </a>
+
+        <!-- User Profile Badge -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-surface border border-brand-border">
+          <div class="w-6 h-6 rounded-full bg-brand-crimson/30 border border-brand-crimson/50 flex items-center justify-center text-xs font-bold text-white" id="userAvatarText">
+            A
+          </div>
+          <div class="text-left hidden md:block">
+            <div id="userNameDisplay" class="text-xs font-semibold text-white leading-tight">Chief Editor</div>
+            <div id="userRoleDisplay" class="text-[10px] text-emerald-400 font-mono">ചീഫ് അഡ്മിൻ</div>
+          </div>
+        </div>
+
+        <!-- Logout Button -->
+        <button onclick="handleLogout()" title="Sign Out" class="p-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-400 hover:text-red-200 transition">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+      <!-- Stats Metric Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="glass-card rounded-xl p-4 border border-brand-border">
+          <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+            <span>പ്രസിദ്ധീകരിച്ച വാർത്തകൾ</span>
+            <i data-lucide="newspaper" class="w-4 h-4 text-brand-crimson"></i>
+          </div>
+          <div id="statTotalArticles" class="text-2xl font-bold text-white font-mono">--</div>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 border border-brand-border">
+          <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+            <span>സജീവ ബ്രേക്കിംഗ്</span>
+            <i data-lucide="radio" class="w-4 h-4 text-amber-400"></i>
+          </div>
+          <div id="statActiveBreaking" class="text-2xl font-bold text-white font-mono">--</div>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 border border-brand-border">
+          <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+            <span>ട്രെൻഡിംഗ് വാർത്തകൾ</span>
+            <i data-lucide="flame" class="w-4 h-4 text-orange-500"></i>
+          </div>
+          <div id="statTrending" class="text-2xl font-bold text-white font-mono">--</div>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 border border-brand-border">
+          <div class="flex items-center justify-between text-slate-400 text-xs mb-2">
+            <span>ഡാറ്റാബേസ് സ്റ്റാറ്റസ്</span>
+            <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold mt-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>MongoDB Live</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center justify-between border-b border-brand-border pb-3 flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <button onclick="switchTab('upload')" id="tabBtnUpload" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-crimson text-white shadow-md shadow-brand-crimson/20">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>വാർത്ത അപ്‌ലോഡ് (Upload News)</span>
+          </button>
+          
+          <button onclick="switchTab('manage')" id="tabBtnManage" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-surface text-slate-300 hover:text-white border border-brand-border">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            <span>വാർത്തകൾ മാനേജ് ചെയ്യുക</span>
+          </button>
+
+          <button onclick="switchTab('breaking')" id="tabBtnBreaking" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-surface text-slate-300 hover:text-white border border-brand-border">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <span>ബ്രേക്കിംഗ് ന്യൂസ്</span>
+          </button>
+        </div>
+
+        <button onclick="loadAllData()" class="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-slate-300 flex items-center gap-1.5 border border-white/10 transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>ഡാറ്റ റീഫ്രഷ്</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: UPLOAD STUDIO -->
+      <section id="tabUploadSection" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Upload Form -->
+        <div class="lg:col-span-7 glass-card rounded-2xl p-6 border border-brand-border space-y-5">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="send" class="w-4 h-4 text-brand-crimson"></i>
+                പുതിയ വാർത്ത തയ്യാറാക്കുക
+              </h2>
+              <p class="text-xs text-slate-400">ഇവിടെ നൽകുന്ന വാർത്തകൾ തത്സമയം MongoDB ഡാറ്റാബേസിൽ ശേഖരിക്കപ്പെടും.</p>
+            </div>
+            <span class="text-[11px] font-mono text-slate-400" id="charCount">0 അക്ഷരങ്ങൾ</span>
+          </div>
+
+          <form id="uploadForm" onsubmit="handlePublishArticle(event)" class="space-y-4">
+            
+            <!-- Headline -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">വാർത്താ തലക്കെട്ട് (Headline) *</label>
+              <textarea id="inpTitle" required rows="2" placeholder="ഉദാ: വയനാട് തുരങ്കപാത നിർമാണത്തിന് കേന്ദ്ര പരിസ്ഥിതി അനുമതി ലഭിച്ചു..." class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson transition leading-relaxed"></textarea>
+            </div>
+
+            <!-- Lead Paragraph -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">വാർത്തയുടെ ആമുഖം (Lead Paragraph) *</label>
+              <textarea id="inpLead" required rows="2" placeholder="വായനക്കാരെ ആകർഷിക്കുന്ന ചുരുങ്ങിയ വിശദീകരണം നൽകുക..." class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson transition leading-relaxed"></textarea>
+            </div>
+
+            <!-- Category & District -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5">വിഭാഗം (Category) *</label>
+                <select id="inpCategory" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-crimson">
+                  <option value="രാഷ്ട്രീയം" data-color="#C8102E">രാഷ്ട്രീയം</option>
+                  <option value="വികസനം & അടിസ്ഥാനസൗകര്യം" data-color="#006b9a">വികസനം & അടിസ്ഥാനസൗകര്യം</option>
+                  <option value="ഭരണം & നിയമസഭ" data-color="#C8102E">ഭരണം & നിയമസഭ</option>
+                  <option value="നഗരവികസനം & പരിസ്ഥിതി" data-color="#005277">നഗരവികസനം & പരിസ്ഥിതി</option>
+                  <option value="ബിസിനസ് & സമ്പദ്‌വ്യവസ്ഥ" data-color="#005277">ബിസിനസ് & സമ്പദ്‌വ്യവസ്ഥ</option>
+                  <option value="സിനിമ & കലാരംഗം" data-color="#B45309">സിനിമ & കലാരംഗം</option>
+                  <option value="സ്പോർട്സ് & ഗെയിംസ്" data-color="#15803d">സ്പോർട്സ് & ഗെയിംസ്</option>
+                  <option value="പ്രവാസം & ഗൾഫ്" data-color="#006b9a">പ്രവാസം & ഗൾഫ്</option>
+                  <option value="കാലാവസ്ഥ & പ്രകൃതി" data-color="#006b9a">കാലാവസ്ഥ & പ്രകൃതി</option>
+                  <option value="അഭിപ്രായം & എഡിറ്റോറിയൽ" data-color="#854d0e">അഭിപ്രായം & എഡിറ്റോറിയൽ</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5">ജില്ല / പ്രദേശം (District)</label>
+                <select id="inpDistrict" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-crimson">
+                  <option value="തിരുവനന്തപുരം">തിരുവനന്തപുരം</option>
+                  <option value="കൊല്ലം">കൊല്ലം</option>
+                  <option value="പത്തനംതിട്ട">പത്തനംതിട്ട</option>
+                  <option value="ആലപ്പുഴ">ആലപ്പുഴ</option>
+                  <option value="കോട്ടയം">കോട്ടയം</option>
+                  <option value="ഇടുക്കി">ഇടുക്കി</option>
+                  <option value="എറണാകുളം" selected>എറണാകുളം</option>
+                  <option value="തൃശ്ശൂർ">തൃശ്ശൂർ</option>
+                  <option value="പാലക്കാട്">പാലക്കാട്</option>
+                  <option value="മലപ്പുറം">മലപ്പുറം</option>
+                  <option value="കോഴിക്കോട്">കോഴിക്കോട്</option>
+                  <option value="വയനാട്">വയനാട്</option>
+                  <option value="കണ്ണൂർ">കണ്ണൂർ</option>
+                  <option value="കാസർഗോഡ്">കാസർഗോഡ്</option>
+                  <option value="ഗൾഫ് / പ്രവാസം">ഗൾഫ് / പ്രവാസം</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Image Presets Selector -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1.5">ചിത്രം തിരഞ്ഞെടുക്കുക (Image Presets)</label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2" id="presetButtons">
+                <!-- Injected via JS -->
+              </div>
+              <div class="relative">
+                <input id="inpImageUrl" type="url" required placeholder="https://images.unsplash.com/..." class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+              </div>
+              <input id="inpImageCaption" type="text" placeholder="ചിത്രത്തിന്റെ അടിക്കുറിപ്പ് (Caption)..." class="w-full mt-2 bg-brand-navyDark border border-brand-border rounded-xl p-2 text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+            </div>
+
+            <!-- Paragraphs (Body) -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="text-xs font-semibold text-slate-300">വാർത്താ വിശദാംശങ്ങൾ (Paragraphs)</label>
+                <button type="button" onclick="addParagraphField()" class="text-[11px] text-brand-crimson hover:underline flex items-center gap-1 font-semibold">
+                  <i data-lucide="plus" class="w-3 h-3"></i> ഖണ്ഡിക ചേർക്കുക
+                </button>
+              </div>
+              <div id="paragraphList" class="space-y-2">
+                <!-- Dynamically generated paragraphs -->
+              </div>
+            </div>
+
+            <!-- Switches: Trending & Breaking -->
+            <div class="flex items-center gap-6 p-3 rounded-xl bg-brand-surface border border-brand-border">
+              <label class="flex items-center gap-2 cursor-pointer text-xs">
+                <input id="inpTrending" type="checkbox" checked class="w-4 h-4 rounded text-brand-crimson focus:ring-brand-crimson accent-brand-crimson" />
+                <span class="text-slate-200">ട്രെൻഡിംഗ് വാർത്തയായി അടയാളപ്പെടുത്തുക</span>
+              </label>
+
+              <label class="flex items-center gap-2 cursor-pointer text-xs">
+                <input id="inpBreaking" type="checkbox" class="w-4 h-4 rounded text-brand-crimson focus:ring-brand-crimson accent-brand-crimson" />
+                <span class="text-slate-200">ബ്രേക്കിംഗ് ന്യൂസ് ടിക്കറിൽ ഉൾപ്പെടുത്തുക</span>
+              </label>
+            </div>
+
+            <!-- Submit Button -->
+            <button id="btnPublish" type="submit" class="w-full py-3 px-4 rounded-xl bg-brand-crimson hover:bg-brand-crimsonDark text-white text-sm font-bold transition shadow-xl shadow-brand-crimson/30 flex items-center justify-center gap-2">
+              <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+              <span>പ്രസിദ്ധീകരിക്കുക (Publish News Article)</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Right: Live Reader Preview Card -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="sticky top-24">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="eye" class="w-4 h-4 text-emerald-400"></i>
+                തത്സമയ പ്രിവ്യൂ (LIVE READER PREVIEW)
+              </span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-brand-crimson text-white font-bold animate-pulse">
+                LIVE
+              </span>
+            </div>
+
+            <!-- Mock Reader Card -->
+            <div class="glass-card rounded-2xl overflow-hidden border border-brand-border shadow-2xl">
+              <div class="relative aspect-video w-full overflow-hidden bg-slate-900">
+                <img id="prevImg" src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80" alt="Preview" class="w-full h-full object-cover transition-transform duration-500 hover:scale-105" />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                <div class="absolute top-3 left-3">
+                  <span id="prevCategoryBadge" class="px-2.5 py-1 rounded text-[11px] font-bold text-white shadow-md" style="background-color: #C8102E;">
+                    രാഷ്ട്രീയം
+                  </span>
+                </div>
+                <div class="absolute bottom-2 left-3 right-3 text-[11px] text-slate-300 flex items-center justify-between">
+                  <span id="prevDistrictBadge">എറണാകുളം • ഇപ്പോൾ</span>
+                  <span>3 മിനിറ്റ് വായന</span>
+                </div>
+              </div>
+
+              <div class="p-4 sm:p-5 space-y-3">
+                <h3 id="prevTitle" class="text-base sm:text-lg font-bold text-white leading-snug">
+                  ഇവിടെ നൽകുന്ന വാർത്താ തലക്കെട്ട് തത്സമയം ദൃശ്യമാകും...
+                </h3>
+                <p id="prevLead" class="text-xs text-slate-300 leading-relaxed line-clamp-3">
+                  വാർത്തയുടെ ആമുഖ വിവരണം ഇവിടെ കാണാം. വായനക്കാർക്ക് പ്രധാന പോർട്ടലിൽ ലഭിക്കുന്ന അതേ അനുഭവമാണിത്.
+                </p>
+                <div class="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="prevAuthor">കേരളദേശം ന്യൂസ് ഡെസ്ക്</span>
+                  </div>
+                  <span class="text-[11px] text-brand-crimson font-semibold">കൂടുതൽ വായിക്കുക →</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-400">
+              <span class="text-slate-200 font-semibold block mb-0.5">ℹ️ സൂചന:</span>
+              പ്രസിദ്ധീകരിക്കുന്ന വാർത്ത ഉടൻ തന്നെ പ്രധാന പോർട്ടലിൽ (Home, Category & Search) പ്രതിഫലിക്കുന്നതാണ്.
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TAB 2: MANAGE ARTICLES -->
+      <section id="tabManageSection" class="hidden space-y-4">
+        
+        <!-- Search and Filter Bar -->
+        <div class="glass-card rounded-xl p-4 border border-brand-border flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="relative w-full sm:w-80">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400 pointer-events-none"></i>
+            <input id="articleSearchInput" oninput="filterArticles()" type="text" placeholder="തലക്കെട്ടോ ജില്ലയോ തിരയുക..." class="w-full bg-brand-navyDark border border-brand-border rounded-xl py-2 pl-10 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <select id="articleCategoryFilter" onchange="filterArticles()" class="bg-brand-navyDark border border-brand-border rounded-xl py-2 px-3 text-xs text-white focus:outline-none focus:border-brand-crimson w-full sm:w-auto">
+              <option value="all">എല്ലാ വിഭാഗങ്ങളും</option>
+              <option value="രാഷ്ട്രീയം">രാഷ്ട്രീയം</option>
+              <option value="വികസനം & അടിസ്ഥാനസൗകര്യം">വികസനം & അടിസ്ഥാനസൗകര്യം</option>
+              <option value="ഭരണം & നിയമസഭ">ഭരണം & നിയമസഭ</option>
+              <option value="ബിസിനസ് & സമ്പദ്‌വ്യവസ്ഥ">ബിസിനസ് & സമ്പദ്‌വ്യവസ്ഥ</option>
+              <option value="പ്രവാസം & ഗൾഫ്">പ്രവാസം & ഗൾഫ്</option>
+              <option value="സിനിമ & കലാരംഗം">സിനിമ & കലാരംഗം</option>
+              <option value="സ്പോർട്സ് & ഗെയിംസ്">സ്പോർട്സ് & ഗെയിംസ്</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Articles Table / Cards -->
+        <div class="glass-card rounded-2xl border border-brand-border overflow-hidden">
+          <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-brand-surface text-slate-400 uppercase font-mono text-[10px] border-b border-brand-border">
+                <tr>
+                  <th class="py-3 px-4">ചിത്രം</th>
+                  <th class="py-3 px-4">തലക്കെട്ട്</th>
+                  <th class="py-3 px-4">വിഭാഗം</th>
+                  <th class="py-3 px-4">ജില്ല</th>
+                  <th class="py-3 px-4">തിയതി</th>
+                  <th class="py-3 px-4 text-right">നടപടികൾ</th>
+                </tr>
+              </thead>
+              <tbody id="articlesTableBody" class="divide-y divide-brand-border">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TAB 3: BREAKING NEWS -->
+      <section id="tabBreakingSection" class="hidden space-y-6">
+        
+        <!-- Add Breaking Item -->
+        <div class="glass-card rounded-2xl p-6 border border-brand-border">
+          <h2 class="text-base font-bold text-white mb-2 flex items-center gap-2">
+            <i data-lucide="radio" class="w-5 h-5 text-brand-crimson animate-pulse"></i>
+            തത്സമയ ബ്രേക്കിംഗ് ന്യൂസ് ചേർക്കുക
+          </h2>
+          <p class="text-xs text-slate-400 mb-4">ഇവിടെ ചേർക്കുന്ന തലക്കെട്ടുകൾ പ്രധാന പേജിലെ ചുവന്ന ബ്രേക്കിംഗ് ടിക്കറിൽ മിന്നിമറയും.</p>
+
+          <form onsubmit="handleCreateBreaking(event)" class="flex flex-col sm:flex-row gap-3">
+            <input id="inpBreakingText" type="text" required placeholder="ബ്രേക്കിംഗ് വാർത്താ തലക്കെട്ട് നൽകുക..." class="flex-1 bg-brand-navyDark border border-brand-border rounded-xl py-2.5 px-4 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-crimson" />
+            <button type="submit" class="py-2.5 px-5 rounded-xl bg-brand-crimson hover:bg-brand-crimsonDark text-white text-xs font-bold transition flex items-center justify-center gap-2 shrink-0">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>ടിക്കറിൽ ചേർക്കുക</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Breaking Items List -->
+        <div class="glass-card rounded-2xl p-6 border border-brand-border">
+          <h3 class="text-sm font-bold text-white mb-4">നിലവിലെ ബ്രേക്കിംഗ് ടിക്കർ ഇനങ്ങൾ</h3>
+          <div id="breakingItemsList" class="space-y-3">
+            <!-- Dynamically loaded -->
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- EDIT ARTICLE MODAL -->
+  <div id="editArticleModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="glass-card rounded-2xl max-w-2xl w-full p-6 border border-brand-border my-8 space-y-4">
+      <div class="flex items-center justify-between border-b border-brand-border pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-4 h-4 text-brand-crimson"></i>
+          വാർത്ത തിരുത്തുക (Edit Article)
+        </h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="editForm" onsubmit="handleSaveEditArticle(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="editArticleId" />
+        
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">തലക്കെട്ട്</label>
+          <textarea id="editTitle" required rows="2" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-white focus:outline-none focus:border-brand-crimson"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">ആമുഖം</label>
+          <textarea id="editLead" required rows="2" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-white focus:outline-none focus:border-brand-crimson"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">വിഭാഗം</label>
+            <input id="editCategory" type="text" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2 text-white" />
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-300 mb-1">ജില്ല</label>
+            <input id="editDistrict" type="text" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2 text-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-300 mb-1">ചിത്രത്തിന്റെ ലിങ്ക് (Image URL)</label>
+          <input id="editImageUrl" type="url" class="w-full bg-brand-navyDark border border-brand-border rounded-xl p-2 text-white" />
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-brand-border">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300">
+            റദ്ദാക്കുക
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-brand-crimson hover:bg-brand-crimsonDark text-white font-bold flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i> മാറ്റങ്ങൾ സേവ് ചെയ്യുക
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC -->
+  <script>
+    const API_BASE = window.location.origin + '/api';
+    const TOKEN_KEY = 'keraladesam_admin_token';
+    const USER_KEY = 'keraladesam_admin_user';
+
+    const PHOTO_PRESETS = [
+      { name: 'സെക്രട്ടേറിയറ്റ്', url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80', caption: 'തിരുവനന്തപുരം ഗവൺമെന്റ് സെക്രട്ടേറിയറ്റ്' },
+      { name: 'കൊച്ചി മെട്രോ', url: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80', caption: 'കൊച്ചി മെട്രോ രണ്ടാം ഘട്ട പാത' },
+      { name: 'വയനാട് തുരങ്കം', url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80', caption: 'വയനാട് ആനക്കാംപൊയിൽ-മേപ്പാടി തുരങ്കപാത' },
+      { name: 'സ്റ്റാർട്ടപ്പ് / IT', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1200&q=80', caption: 'കേരളത്തിലെ സ്റ്റാർട്ടപ്പ് സംരംഭകർ' }
+    ];
+
+    let allArticles = [];
+    let breakingList = [];
+
+    // Initialize App
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initPhotoPresets();
+      initParagraphFields();
+      initLivePreviewListeners();
+      checkAuthStatus();
+    });
+
+    function showToast(text, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const isErr = type === 'error';
+      toast.className = `p-3 rounded-xl border text-xs font-semibold shadow-2xl flex items-center gap-2 pointer-events-auto transition transform translate-y-2 opacity-0 ${
+        isErr ? 'bg-red-950/90 border-red-500/50 text-red-200' : 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200'
+      }`;
+      toast.innerHTML = `
+        <i data-lucide="${isErr ? 'alert-circle' : 'check-circle-2'}" class="w-4 h-4 shrink-0"></i>
+        <span>${text}</span>
+      `;
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function initPhotoPresets() {
+      const container = document.getElementById('presetButtons');
+      container.innerHTML = PHOTO_PRESETS.map((p, idx) => `
+        <button type="button" onclick="selectPreset(${idx})" class="p-1.5 rounded-lg bg-brand-surface hover:bg-brand-surfaceHover border border-brand-border text-[11px] text-slate-300 flex items-center gap-1.5 transition text-left overflow-hidden">
+          <img src="${p.url}" class="w-5 h-5 rounded object-cover shrink-0" />
+          <span class="truncate">${p.name}</span>
+        </button>
+      `).join('');
+      // Set default
+      selectPreset(0);
+    }
+
+    function selectPreset(idx) {
+      const p = PHOTO_PRESETS[idx];
+      document.getElementById('inpImageUrl').value = p.url;
+      document.getElementById('inpImageCaption').value = p.caption;
+      document.getElementById('prevImg').src = p.url;
+    }
+
+    function initParagraphFields() {
+      const container = document.getElementById('paragraphList');
+      container.innerHTML = `
+        <div class="flex items-start gap-2">
+          <textarea required rows="2" class="p-text flex-1 bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-crimson" placeholder="ഖണ്ഡിക 1...">സംസ്ഥാനത്ത് സുപ്രധാന വികസന പദ്ധതികൾക്ക് വേഗമേറ്റാൻ മന്ത്രിസഭാ യോഗം തീരുമാനിച്ചു.</textarea>
+        </div>
+        <div class="flex items-start gap-2">
+          <textarea rows="2" class="p-text flex-1 bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-crimson" placeholder="ഖണ്ഡിക 2...">വിവിധ മേഖലകളിലെ വിദഗ്ധരുടെ നിർദേശങ്ങൾ പരിഗണിച്ചാണ് പദ്ധതി രൂപരേഖ തയ്യാറാക്കിയിട്ടുള്ളത്.</textarea>
+        </div>
+      `;
+    }
+
+    function addParagraphField() {
+      const container = document.getElementById('paragraphList');
+      const div = document.createElement('div');
+      div.className = 'flex items-start gap-2 mt-2';
+      div.innerHTML = `
+        <textarea rows="2" class="p-text flex-1 bg-brand-navyDark border border-brand-border rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-brand-crimson" placeholder="അടുത്ത ഖണ്ഡിക..."></textarea>
+        <button type="button" onclick="this.parentElement.remove()" class="p-2 text-slate-400 hover:text-red-400">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+      `;
+      container.appendChild(div);
+      lucide.createIcons();
+    }
+
+    function initLivePreviewListeners() {
+      const title = document.getElementById('inpTitle');
+      const lead = document.getElementById('inpLead');
+      const cat = document.getElementById('inpCategory');
+      const dist = document.getElementById('inpDistrict');
+      const img = document.getElementById('inpImageUrl');
+
+      title.addEventListener('input', () => {
+        document.getElementById('prevTitle').textContent = title.value || 'ഇവിടെ നൽകുന്ന വാർത്താ തലക്കെട്ട് തത്സമയം ദൃശ്യമാകും...';
+        document.getElementById('charCount').textContent = title.value.length + ' അക്ഷരങ്ങൾ';
+      });
+      lead.addEventListener('input', () => {
+        document.getElementById('prevLead').textContent = lead.value || 'വാർത്തയുടെ ആമുഖ വിവരണം ഇവിടെ കാണാം.';
+      });
+      cat.addEventListener('change', () => {
+        const selected = cat.options[cat.selectedIndex];
+        document.getElementById('prevCategoryBadge').textContent = selected.value;
+        document.getElementById('prevCategoryBadge').style.backgroundColor = selected.dataset.color || '#C8102E';
+      });
+      dist.addEventListener('change', () => {
+        document.getElementById('prevDistrictBadge').textContent = dist.value + ' • ഇപ്പോൾ';
+      });
+      img.addEventListener('input', () => {
+        if (img.value) document.getElementById('prevImg').src = img.value;
+      });
+    }
+
+    function checkAuthStatus() {
+      const token = localStorage.getItem(TOKEN_KEY);
+      const userJson = localStorage.getItem(USER_KEY);
+      if (token && userJson) {
+        try {
+          const user = JSON.parse(userJson);
+          showAdminApp(user);
+        } catch (e) {
+          showAuthSection();
+        }
+      } else {
+        showAuthSection();
+      }
+    }
+
+    function showAuthSection() {
+      document.getElementById('authSection').classList.remove('hidden');
+      document.getElementById('adminApp').classList.add('hidden');
+    }
+
+    function showAdminApp(user) {
+      document.getElementById('authSection').classList.add('hidden');
+      document.getElementById('adminApp').classList.remove('hidden');
+      document.getElementById('userNameDisplay').textContent = user.name || 'Chief Editor';
+      document.getElementById('userRoleDisplay').textContent = user.role === 'admin' ? 'ചീഫ് അഡ്മിൻ' : 'എഡിറ്റർ';
+      document.getElementById('userAvatarText').textContent = (user.name || 'A')[0].toUpperCase();
+      document.getElementById('prevAuthor').textContent = user.name || 'കേരളദേശം ന്യൂസ് ഡെസ്ക്';
+      loadAllData();
+    }
+
+    function showRegisterCard() {
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('registerCard').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function showLoginCard() {
+      document.getElementById('registerCard').classList.add('hidden');
+      document.getElementById('loginCard').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function fillDemoCredentials() {
+      document.getElementById('loginEmail').value = 'admin@keraladesam.com';
+      document.getElementById('loginPassword').value = 'admin12345';
+      document.getElementById('loginError').classList.add('hidden');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const pass = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('loginSubmitBtn');
+      const errBox = document.getElementById('loginError');
+      const errMsg = document.getElementById('loginErrorMsg');
+
+      errBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>ലോഗിൻ ചെയ്യുന്നു...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pass })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'ലോഗിൻ പരാജയപ്പെട്ടു');
+        }
+
+        localStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        showToast('സ്വാഗതം! ലോഗിൻ വിജയകരം.');
+        showAdminApp(data.user);
+      } catch (err) {
+        errMsg.textContent = err.message || 'ലോഗിൻ പരാജയപ്പെട്ടു';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>പ്രവേശിക്കുക (Login)</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        lucide.createIcons();
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const role = document.getElementById('regRole').value;
+      const btn = document.getElementById('regSubmitBtn');
+      const errBox = document.getElementById('registerError');
+      const errMsg = document.getElementById('registerErrorMsg');
+
+      errBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>രജിസ്റ്റർ ചെയ്യുന്നു...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, role })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു');
+        }
+
+        localStorage.setItem(TOKEN_KEY, data.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        showToast('അക്കൗണ്ട് സൃഷ്ടിച്ചു! ലോഗിൻ ചെയ്തു.');
+        showAdminApp(data.user);
+      } catch (err) {
+        errMsg.textContent = err.message || 'രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു';
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>അക്കൗണ്ട് സൃഷ്ടിക്കുക</span><i data-lucide="check" class="w-4 h-4"></i>`;
+        lucide.createIcons();
+      }
+    }
+
+    function handleLogout() {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      showToast('വിജയകരമായി ലോഗൗട്ട് ചെയ്തു.');
+      showAuthSection();
+    }
+
+    function switchTab(tab) {
+      const tabs = ['upload', 'manage', 'breaking'];
+      tabs.forEach(t => {
+        const sec = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Section`);
+        const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        if (t === tab) {
+          sec.classList.remove('hidden');
+          btn.className = 'tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-crimson text-white shadow-md shadow-brand-crimson/20';
+        } else {
+          sec.classList.add('hidden');
+          btn.className = 'tab-btn px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-surface text-slate-300 hover:text-white border border-brand-border';
+        }
+      });
+      lucide.createIcons();
+    }
+
+    async function loadAllData() {
+      try {
+        const [artRes, brkRes] = await Promise.all([
+          fetch(`${API_BASE}/articles?limit=100&_t=${Date.now()}`),
+          fetch(`${API_BASE}/breaking?_t=${Date.now()}`)
+        ]);
+        const artData = await artRes.json();
+        const brkData = await brkRes.json();
+
+        allArticles = artData.articles || [];
+        breakingList = brkData.breakingNews || [];
+
+        // Update stats
+        document.getElementById('statTotalArticles').textContent = allArticles.length;
+        document.getElementById('statActiveBreaking').textContent = breakingList.filter(b => b.active).length;
+        document.getElementById('statTrending').textContent = allArticles.filter(a => a.trending).length;
+
+        renderArticlesTable(allArticles);
+        renderBreakingList(breakingList);
+      } catch (err) {
+        showToast('ഡാറ്റ ലോഡ് ചെയ്യുന്നതിൽ പിഴവ് സംഭവിച്ചു', 'error');
+      }
+    }
+
+    async function handlePublishArticle(e) {
+      e.preventDefault();
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return handleLogout();
+
+      const btn = document.getElementById('btnPublish');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>പ്രസിദ്ധീകരിക്കുന്നു...</span>`;
+      lucide.createIcons();
+
+      const paragraphs = Array.from(document.querySelectorAll('.p-text'))
+        .map(t => t.value.trim())
+        .filter(Boolean);
+
+      const catSelect = document.getElementById('inpCategory');
+      const selectedOption = catSelect.options[catSelect.selectedIndex];
+
+      const payload = {
+        title: document.getElementById('inpTitle').value.trim(),
+        lead: document.getElementById('inpLead').value.trim(),
+        category: selectedOption.value,
+        categoryColor: selectedOption.dataset.color || '#C8102E',
+        district: document.getElementById('inpDistrict').value,
+        imageUrl: document.getElementById('inpImageUrl').value.trim(),
+        imageCaption: document.getElementById('inpImageCaption').value.trim(),
+        paragraphs: paragraphs.length ? paragraphs : [document.getElementById('inpLead').value.trim()],
+        trending: document.getElementById('inpTrending').checked,
+        breaking: document.getElementById('inpBreaking').checked,
+        readTime: '3 മിനിറ്റ് വായന'
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/articles`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'പ്രസിദ്ധീകരിക്കാൻ കഴിഞ്ഞില്ല');
+        }
+
+        showToast('വാർത്ത വിജയകരമായി പ്രസിദ്ധീകരിച്ചു!');
+        document.getElementById('inpTitle').value = '';
+        document.getElementById('inpLead').value = '';
+        initParagraphFields();
+        loadAllData();
+        switchTab('manage');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="upload-cloud" class="w-4 h-4"></i><span>പ്രസിദ്ധീകരിക്കുക (Publish News Article)</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    function renderArticlesTable(articles) {
+      const tbody = document.getElementById('articlesTableBody');
+      if (!articles || !articles.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-500">വാർത്തകളൊന്നും കണ്ടെത്താനായില്ല</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = articles.map(art => `
+        <tr class="hover:bg-brand-surface/60 transition">
+          <td class="py-3 px-4">
+            <img src="${art.imageUrl || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80'}" class="w-12 h-9 object-cover rounded-md" />
+          </td>
+          <td class="py-3 px-4 max-w-xs">
+            <div class="font-bold text-white line-clamp-1">${art.title}</div>
+            <div class="text-[10px] text-slate-400 line-clamp-1">${art.lead}</div>
+          </td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold text-white" style="background-color: ${art.categoryColor || '#C8102E'};">
+              ${art.category}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-slate-300">${art.district || 'കേരളം'}</td>
+          <td class="py-3 px-4 text-slate-400 text-[11px] font-mono">
+            ${new Date(art.createdAt || Date.now()).toLocaleDateString('ml-IN')}
+          </td>
+          <td class="py-3 px-4 text-right">
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="openEditModal('${art._id}')" class="p-1.5 rounded-lg bg-blue-950/60 hover:bg-blue-900 border border-blue-500/30 text-blue-400 hover:text-white transition">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="handleDeleteArticle('${art._id}')" class="p-1.5 rounded-lg bg-red-950/60 hover:bg-red-900 border border-red-500/30 text-red-400 hover:text-white transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function filterArticles() {
+      const q = document.getElementById('articleSearchInput').value.toLowerCase().trim();
+      const cat = document.getElementById('articleCategoryFilter').value;
+
+      const filtered = allArticles.filter(art => {
+        const matchesQ = !q || art.title.toLowerCase().includes(q) || (art.district && art.district.toLowerCase().includes(q));
+        const matchesCat = cat === 'all' || art.category === cat;
+        return matchesQ && matchesCat;
+      });
+
+      renderArticlesTable(filtered);
+    }
+
+    function openEditModal(id) {
+      const art = allArticles.find(a => a._id === id);
+      if (!art) return;
+
+      document.getElementById('editArticleId').value = art._id;
+      document.getElementById('editTitle').value = art.title;
+      document.getElementById('editLead').value = art.lead;
+      document.getElementById('editCategory').value = art.category;
+      document.getElementById('editDistrict').value = art.district || '';
+      document.getElementById('editImageUrl').value = art.imageUrl || '';
+
+      document.getElementById('editArticleModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeEditModal() {
+      document.getElementById('editArticleModal').classList.add('hidden');
+    }
+
+    async function handleSaveEditArticle(e) {
+      e.preventDefault();
+      const token = localStorage.getItem(TOKEN_KEY);
+      const id = document.getElementById('editArticleId').value;
+
+      const payload = {
+        title: document.getElementById('editTitle').value.trim(),
+        lead: document.getElementById('editLead').value.trim(),
+        category: document.getElementById('editCategory').value.trim(),
+        district: document.getElementById('editDistrict').value.trim(),
+        imageUrl: document.getElementById('editImageUrl').value.trim()
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/articles/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'അപ്ഡേറ്റ് പരാജയപ്പെട്ടു');
+        }
+
+        showToast('വാർത്ത വിജയകരമായി അപ്ഡേറ്റ് ചെയ്തു!');
+        closeEditModal();
+        loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleDeleteArticle(id) {
+      if (!confirm('ഈ വാർത്ത ഡാറ്റാബേസിൽ നിന്നും പൂർണ്ണമായി നീക്കം ചെയ്യണമോ?')) return;
+      const token = localStorage.getItem(TOKEN_KEY);
+
+      try {
+        const res = await fetch(`${API_BASE}/articles/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'ഡിലീറ്റ് പരാജയപ്പെട്ടു');
+
+        showToast('വാർത്ത വിജയകരമായി നീക്കം ചെയ്തു');
+        loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderBreakingList(list) {
+      const container = document.getElementById('breakingItemsList');
+      if (!list || !list.length) {
+        container.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">ബ്രേക്കിംഗ് ഇനങ്ങളൊന്നും നിലവിലില്ല</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(item => `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-brand-surface border border-brand-border">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full ${item.active ? 'bg-red-500 animate-pulse' : 'bg-slate-600'}"></span>
+            <span class="text-xs text-white font-medium">${item.headline}</span>
+          </div>
+          <button onclick="handleDeleteBreaking('${item._id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-950/40">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function handleCreateBreaking(e) {
+      e.preventDefault();
+      const token = localStorage.getItem(TOKEN_KEY);
+      const text = document.getElementById('inpBreakingText').value.trim();
+      if (!text) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/breaking`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ headline: text, active: true })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'ബ്രേക്കിംഗ് ചേർക്കാൻ സാധിച്ചില്ല');
+
+        showToast('ബ്രേക്കിംഗ് ന്യൂസ് ചേർത്തു!');
+        document.getElementById('inpBreakingText').value = '';
+        loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleDeleteBreaking(id) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      try {
+        const res = await fetch(`${API_BASE}/breaking/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'നീക്കം ചെയ്യാൻ സാധിച്ചില്ല');
+
+        showToast('ബ്രേക്കിംഗ് ഇനം നീക്കം ചെയ്തു');
+        loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>
