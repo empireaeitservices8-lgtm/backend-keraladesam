@@ -2,7 +2,18 @@ const BreakingNews = require('../models/BreakingNews');
 
 exports.getBreakingNews = async (req, res) => {
   try {
-    const headlines = await BreakingNews.find({ active: true }).sort({ createdAt: -1 });
+    let headlines = await BreakingNews.find({ active: true }).sort({ createdAt: -1 });
+
+    if (headlines.length === 0) {
+      try {
+        const { initialBreaking } = require('../data/seedData');
+        const items = initialBreaking.map(text => ({ headline: text, active: true }));
+        headlines = await BreakingNews.insertMany(items);
+      } catch (err) {
+        console.error('Breaking auto-seed error:', err.message);
+      }
+    }
+
     res.status(200).json({
       success: true,
       count: headlines.length,

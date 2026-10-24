@@ -27,7 +27,19 @@ exports.getArticles = async (req, res) => {
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const total = await Article.countDocuments(query);
+    let total = await Article.countDocuments(query);
+
+    // Auto-seed if database has 0 articles
+    if (total === 0 && Object.keys(query).length === 0) {
+      try {
+        const { initialArticles } = require('../data/seedData');
+        await Article.insertMany(initialArticles);
+        total = await Article.countDocuments(query);
+      } catch (seedErr) {
+        console.error('Auto-seed error:', seedErr.message);
+      }
+    }
+
     const articles = await Article.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
