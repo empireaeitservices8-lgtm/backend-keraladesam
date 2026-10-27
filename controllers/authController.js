@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secretkey123';
+const JWT_SECRET = process.env.JWT_SECRET || process.env.JWTSecretKey || 'secretkey123';
 
 const sendTokenResponse = (user, statusCode, res, message = 'Success') => {
   const token = jwt.sign(
