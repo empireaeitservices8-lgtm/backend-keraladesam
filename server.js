@@ -14,16 +14,19 @@ app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Admin UI Web Application Route
-app.get(['/', '/admin', '/login'], (req, res, next) => {
-  // If API client explicitly requests JSON at root
+// Admin UI Web Application Route - redirects to modern Next.js Admin Portal
+app.get(['/admin', '/login'], (req, res) => {
+  res.redirect(302, 'https://kerala-dhesam.vercel.app/admin');
+});
+
+app.get('/', (req, res) => {
   if (req.headers.accept && req.headers.accept.includes('application/json')) {
     return res.status(200).json({
       status: 'online',
       service: 'Kerala Desam Backend & Admin API',
       version: '1.0.0',
       endpoints: {
-        admin: '/',
+        admin: 'https://kerala-dhesam.vercel.app/admin',
         health: '/api/health',
         articles: '/api/articles',
         breaking: '/api/breaking',
@@ -32,7 +35,7 @@ app.get(['/', '/admin', '/login'], (req, res, next) => {
       }
     });
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.redirect(302, 'https://kerala-dhesam.vercel.app/admin');
 });
 
 // Ensure MongoDB connection for serverless invocations
