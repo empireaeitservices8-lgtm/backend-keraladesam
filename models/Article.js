@@ -15,7 +15,8 @@ const ArticleSchema = new mongoose.Schema(
     },
     lead: {
       type: String,
-      required: [true, 'Please provide article summary lead'],
+      required: false,
+      default: '',
       trim: true,
     },
     category: {
@@ -29,8 +30,19 @@ const ArticleSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      required: true,
+      required: false,
+      default: '',
     },
+    imageData: {
+      type: Buffer,
+      select: false,
+    },
+    imageContentType: {
+      type: String,
+      enum: ['image/jpeg', 'image/png', 'image/webp'],
+      select: false,
+    },
+
     imageCaption: {
       type: String,
       default: '',
@@ -45,20 +57,21 @@ const ArticleSchema = new mongoose.Schema(
     },
     paragraphs: {
       type: [String],
-      required: true,
+      required: false,
+      default: [],
     },
     highlights: {
       type: [String],
       default: [],
     },
     author: {
-      name: { type: String, required: true },
-      designation: { type: String, default: 'ലേഖകൻ' },
+      name: { type: String, default: 'കേരളദേശം ന്യൂസ് ഡെസ്ക്' },
+      designation: { type: String, default: 'ഡെസ്ക് റിപ്പോർട്ടർ' },
       location: { type: String, default: 'കേരളം' },
       avatar: {
         type: String,
         default:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+          'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
       },
       verified: { type: Boolean, default: true },
     },
@@ -72,7 +85,11 @@ const ArticleSchema = new mongoose.Schema(
     },
     views: {
       type: String,
-      default: '1.2k',
+      default: '1',
+    },
+    viewsCount: {
+      type: Number,
+      default: 1,
     },
     tags: {
       type: [String],
@@ -86,12 +103,21 @@ const ArticleSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isHeadline: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     publishedAt: {
       type: String,
       default: () =>
         new Date().toLocaleString('ml-IN', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
         }),
     },
   },

@@ -80,3 +80,36 @@ exports.deleteBreakingNews = async (req, res) => {
     });
   }
 };
+
+exports.updateBreakingNews = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { headline, active, category } = req.body;
+
+    const updateData = {};
+    if (headline !== undefined) updateData.headline = headline.trim();
+    if (active !== undefined) updateData.active = Boolean(active);
+    if (category !== undefined) updateData.category = category.trim();
+
+    const item = await BreakingNews.findByIdAndUpdate(id, updateData, { new: true });
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breaking news item not found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Breaking news updated successfully',
+      item,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update breaking news',
+    });
+  }
+};
+

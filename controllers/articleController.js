@@ -41,7 +41,7 @@ exports.getArticles = async (req, res) => {
     }
 
     const articles = await Article.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ isHeadline: -1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -66,15 +66,26 @@ exports.getArticleById = async (req, res) => {
     const { id } = req.params;
     const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
 
-    const article = await Article.findOne({
-      $or: [{ customId: id }, { _id: isObjectId ? id : null }],
-    });
+    const article = await Article.findOneAndUpdate(
+      {
+        $or: [{ customId: id }, { _id: isObjectId ? id : null }],
+      },
+      {
+        $inc: { viewsCount: 1 },
+      },
+      { new: true }
+    );
 
     if (!article) {
       return res.status(404).json({
         success: false,
         error: 'Article not found',
       });
+    }
+
+    // Keep views string synced with viewsCount
+    if (article.viewsCount) {
+      article.views = String(article.viewsCount);
     }
 
     res.status(200).json({
@@ -89,59 +100,132 @@ exports.getArticleById = async (req, res) => {
   }
 };
 
+// Helper to parse paragraphs robustly from string, array, or JSON
+function parseParagraphs(input, fallbackLead = '') {
+  if (Array.isArray(input)) {
+    const list = input
+      .map((p) => (typeof p === 'string' ? p.trim() : String(p || '').trim()))
+      .filter(Boolean);
+    if (list.length > 0) return list;
+  } else if (typeof input === 'string' && input.trim()) {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) {
+        const list = parsed
+          .map((p) => (typeof p === 'string' ? p.trim() : String(p || '').trim()))
+          .filter(Boolean);
+        if (list.length > 0) return list;
+      }
+    } catch (e) {
+      // Not JSON, treat as multiline text
+    }
+    const list = input
+      .split(/\n\s*\n|\r\n\s*\r\n|\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (list.length > 0) return list;
+  }
+  return fallbackLead ? [fallbackLead.trim()] : [];
+}
+
+// Helper to parse string or array tags/highlights
+function parseStringArray(input, separator = ',') {
+  if (Array.isArray(input)) {
+    return input.map((t) => (typeof t === 'string' ? t.trim() : String(t || '').trim())).filter(Boolean);
+  }
+  if (typeof input === 'string' && input.trim()) {
+    try {
+      const parsed = JSON.parse(input);
+      if (Array.isArray(parsed)) {
+        return parsed.map((t) => (typeof t === 'string' ? t.trim() : String(t || '').trim())).filter(Boolean);
+      }
+    } catch (e) {}
+    return input
+      .split(separator)
+      .map((t) => t.trim().replace(/^#/, ''))
+      .filter(Boolean);
+  }
+  return [];
+}
+
 exports.createArticle = async (req, res) => {
   try {
-    const body = req.body;
+    const body = req.body || {};
 
-    if (!body.title || !body.lead || !body.category) {
+    if (!body.title || !body.category) {
       return res.status(400).json({
         success: false,
-        error: 'Title, lead, and category are required',
+        error: 'Title and category are required',
       });
     }
 
-    const customId =
-      body.customId ||
-      body.title
+    // Robust paragraph parsing so full pasted content is never lost
+    const paragraphs = parseParagraphs(body.paragraphs || body.content, body.lead);
+    const lead = (body.lead && body.lead.trim()) || (paragraphs[0] ? paragraphs[0].slice(0, 300) : body.title.trim());
+
+    // Generate safe, collision-proof customId even with Malayalam titles
+    let customId = body.customId;
+    if (!customId) {
+      const cleanEnglish = (body.title || '')
         .toLowerCase()
         .replace(/[^a-zA-Z0-9\s]/g, '')
         .trim()
-        .replace(/\s+/g, '-') +
-        '-' +
-        Date.now().toString().slice(-4);
+        .replace(/\s+/g, '-');
+      const uniqueSuffix = Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 7);
+      customId = cleanEnglish ? `${cleanEnglish.slice(0, 35)}-${uniqueSuffix}` : `news-${uniqueSuffix}`;
+    }
+
+    // Image is completely optional - no forced placeholders
+    let imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
+    if (!imageUrl && req.file) {
+      imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
+    const isHeadline = Boolean(body.isHeadline === true || body.isHeadline === 'true');
+    if (isHeadline) {
+      await Article.updateMany({ isHeadline: true }, { isHeadline: false });
+    }
 
     const newArticle = await Article.create({
       customId,
-      title: body.title,
-      lead: body.lead,
-      category: body.category,
+      title: body.title.trim(),
+      lead,
+      category: body.category.trim(),
       categoryColor: body.categoryColor || '#C8102E',
-      imageUrl:
-        body.imageUrl ||
-        'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80',
-      imageCaption: body.imageCaption || '',
+      imageUrl,
+      imageCaption: body.imageCaption ? body.imageCaption.trim() : '',
       readTime: body.readTime || '3 മിനിറ്റ് വായന',
       audioDuration: body.audioDuration || '03:00',
-      paragraphs: Array.isArray(body.paragraphs) ? body.paragraphs : [body.lead],
-      highlights: body.highlights || [],
+      paragraphs,
+      highlights: parseStringArray(body.highlights, '\n'),
       author: body.author || {
-        name: req.user?.name || 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
-        designation: req.user?.role === 'admin' ? 'ചീഫ് എഡിറ്റർ' : 'സ്റ്റാഫ് റിപ്പോർട്ടർ',
+        name:
+          req.user?.name && req.user.name !== 'Chief Editor'
+            ? req.user.name
+            : 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
+        designation: req.user?.role === 'admin' ? 'ചീഫ് എഡിറ്റർ' : 'ഡെസ്ക് റിപ്പോർട്ടർ',
         location: 'കേരളം',
         avatar:
-          req.user?.avatar ||
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+          req.user?.avatar && !req.user.avatar.includes('534528741775')
+            ? req.user.avatar
+            : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
         verified: true,
       },
-      district: body.district || '',
-      country: body.country || '',
+      district: body.district ? body.district.trim() : '',
+      country: body.country ? body.country.trim() : '',
       views: '1',
-      tags: body.tags || [],
-      trending: Boolean(body.trending),
-      breaking: Boolean(body.breaking),
+      viewsCount: 1,
+      tags: parseStringArray(body.tags, ','),
+      trending: Boolean(body.trending === true || body.trending === 'true'),
+      breaking: Boolean(body.breaking === true || body.breaking === 'true'),
+      isHeadline,
       publishedAt: new Date().toLocaleString('ml-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
       }),
     });
 
@@ -151,6 +235,7 @@ exports.createArticle = async (req, res) => {
       article: newArticle,
     });
   } catch (error) {
+    console.error('Create article error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to create article',
@@ -162,10 +247,38 @@ exports.updateArticle = async (req, res) => {
   try {
     const { id } = req.params;
     const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const body = { ...(req.body || {}) };
+
+    if (body.paragraphs) {
+      body.paragraphs = parseParagraphs(body.paragraphs, body.lead);
+    }
+    if (body.tags) {
+      body.tags = parseStringArray(body.tags, ',');
+    }
+    if (body.highlights) {
+      body.highlights = parseStringArray(body.highlights, '\n');
+    }
+    if (body.trending !== undefined) {
+      body.trending = Boolean(body.trending === true || body.trending === 'true');
+    }
+    if (body.breaking !== undefined) {
+      body.breaking = Boolean(body.breaking === true || body.breaking === 'true');
+    }
+    if (body.isHeadline !== undefined) {
+      const isH = Boolean(body.isHeadline === true || body.isHeadline === 'true');
+      if (isH) {
+        await Article.updateMany({ isHeadline: true }, { isHeadline: false });
+      }
+      body.isHeadline = isH;
+    }
+
+    if (!body.imageUrl && req.file) {
+      body.imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
 
     const article = await Article.findOneAndUpdate(
       { $or: [{ customId: id }, { _id: isObjectId ? id : null }] },
-      { $set: req.body },
+      { $set: body },
       { new: true, runValidators: true }
     );
 
@@ -182,10 +295,37 @@ exports.updateArticle = async (req, res) => {
       article,
     });
   } catch (error) {
+    console.error('Update article error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to update article',
     });
+  }
+};
+
+exports.setHeadline = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const filter = { $or: [{ customId: id }, { _id: isObjectId ? id : null }] };
+    const article = await Article.findOne(filter);
+    if (!article) {
+      return res.status(404).json({ success: false, error: 'Article not found' });
+    }
+    const targetState = !article.isHeadline;
+    if (targetState) {
+      await Article.updateMany({ isHeadline: true }, { isHeadline: false });
+    }
+    article.isHeadline = targetState;
+    await article.save();
+    res.status(200).json({
+      success: true,
+      message: targetState ? 'Article set as main headline' : 'Headline pin removed',
+      article,
+      isHeadline: targetState,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 

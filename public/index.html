@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>കേരളദേശം എഡിറ്റോറിയൽ കൺസോൾ | Kerala Desam Admin & Editor Panel</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="shortcut icon" href="/favicon.ico?v=3" />
+  <link rel="apple-touch-icon" href="/favicon.png?v=3" />
   
   <!-- Modern Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -303,6 +306,12 @@
             <i data-lucide="radio" class="w-4 h-4"></i>
             <span>ബ്രേക്കിംഗ് ന്യൂസ്</span>
           </button>
+
+          <!-- Tab 4: Videos -->
+          <button onclick="switchTab('videos')" id="tabBtnVideos" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200">
+            <i data-lucide="video" class="w-4 h-4"></i>
+            <span>വീഡിയോകൾ (Videos)</span>
+          </button>
         </div>
 
         <!-- Refresh Button -->
@@ -384,12 +393,15 @@
 
             <!-- Image Presets Selector -->
             <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1.5">ചിത്രം തിരഞ്ഞെടുക്കുക (Image Presets)</label>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-semibold text-slate-700">ചിത്രം തിരഞ്ഞെടുക്കുക (Image - ആവശ്യമെങ്കിൽ മാത്രം)</label>
+                <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-200">ഓപ്ഷണൽ</span>
+              </div>
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2" id="presetButtons">
                 <!-- Injected via JS -->
               </div>
               <div class="relative">
-                <input id="inpImageUrl" type="url" required placeholder="https://images.unsplash.com/..." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-brand-crimson" />
+                <input id="inpImageUrl" type="url" placeholder="https://... (ചിത്രമില്ലെങ്കിൽ ശൂന്യമായി വിടാം)" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-brand-crimson" />
               </div>
               <input id="inpImageCaption" type="text" placeholder="ചിത്രത്തിന്റെ അടിക്കുറിപ്പ് (Caption)..." class="w-full mt-2 bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs text-slate-700 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-brand-crimson" />
             </div>
@@ -410,7 +422,7 @@
             <!-- Switches: Trending & Breaking -->
             <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <label class="flex items-center gap-2 cursor-pointer text-xs">
-                <input id="inpTrending" type="checkbox" checked class="w-4 h-4 rounded text-brand-crimson focus:ring-brand-crimson accent-brand-crimson" />
+                <input id="inpTrending" type="checkbox" class="w-4 h-4 rounded text-brand-crimson focus:ring-brand-crimson accent-brand-crimson" />
                 <span class="text-slate-800 font-medium">ട്രെൻഡിംഗ് വാർത്തയായി അടയാളപ്പെടുത്തുക</span>
               </label>
 
@@ -560,6 +572,90 @@
 
       </section>
 
+      <!-- TAB 4: VIDEOS SECTION (White Theme) -->
+      <section id="tabVideosSection" class="hidden space-y-6">
+        
+        <!-- Add Video Item -->
+        <div class="panel-card rounded-2xl p-6 sm:p-7">
+          <div class="flex items-center gap-2 mb-1">
+            <i data-lucide="video" class="w-5 h-5 text-brand-crimson"></i>
+            <h2 class="text-base font-bold text-slate-900">
+              പുതിയ വീഡിയോ ഷോർട്ട് ചേർക്കുക (Add Video)
+            </h2>
+          </div>
+          <p class="text-xs text-slate-500 mb-5">ഹോംപേജിൽ പ്രദർശിപ്പിക്കുന്ന വീഡിയോ ഷോർട്ട്സ് ലിങ്ക് ചെയ്യുക.</p>
+
+          <form onsubmit="handleCreateVideo(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">വീഡിയോ തലക്കെട്ട് *</label>
+              <input id="inpVideoTitle" type="text" required placeholder="ഉദാ: വയനാട് തുരങ്കപാത റൂട്ട് മാപ്പും 3D ദൃശ്യങ്ങളും..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-brand-crimson" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">വിഭാഗം</label>
+                <select id="inpVideoCategory" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson">
+                  <option value="DEVELOPMENT">DEVELOPMENT</option>
+                  <option value="METRO">METRO</option>
+                  <option value="PRAVASI">PRAVASI</option>
+                  <option value="WEATHER">WEATHER</option>
+                  <option value="KERALA">KERALA</option>
+                  <option value="POLITICS">POLITICS</option>
+                  <option value="CINEMA">CINEMA</option>
+                  <option value="SPORTS">SPORTS</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">ദൈർഘ്യം</label>
+                <input id="inpVideoDuration" type="text" value="01:30" placeholder="01:30" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">കാഴ്ചക്കാർ</label>
+                <input id="inpVideoViews" type="text" value="150K" placeholder="150K" class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">വീഡിയോ URL (YouTube / Shorts / MP4) *</label>
+              <input id="inpVideoUrl" type="url" required placeholder="https://www.youtube.com/watch?v=... അല്ലെങ്കിൽ https://youtube.com/shorts/..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson font-mono" />
+              <p class="text-[11px] text-slate-400 mt-1">💡 YouTube ലിങ്കുകൾ നൽകിയാൽ തമ്പ്‌നെയിൽ സ്വയം ശേഖരിക്കപ്പെടും.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">കസ്റ്റം തമ്പ്‌നെയിൽ URL (ഓപ്ഷണൽ)</label>
+                <input id="inpVideoThumbnail" type="url" placeholder="https://images.unsplash.com/..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">ലഘുവിവരണം (ഓപ്ഷണൽ)</label>
+                <input id="inpVideoDescription" type="text" placeholder="വീഡിയോയെക്കുറിച്ചുള്ള ലഘുവിവരണം..." class="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" />
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+              <button id="btnCreateVideo" type="submit" class="py-2.5 px-6 rounded-xl bg-brand-crimson hover:bg-brand-crimsonDark text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span>വീഡിയോ അപ്‌ലോഡ് ചെയ്യുക</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Video Items Grid -->
+        <div class="panel-card rounded-2xl p-6 sm:p-7">
+          <h3 class="text-sm font-bold text-slate-900 mb-4 flex items-center justify-between">
+            <span>നിലവിലെ വീഡിയോകൾ</span>
+            <span id="videoCountBadge" class="text-xs text-slate-500 font-normal">--</span>
+          </h3>
+          <div id="videoItemsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <!-- Dynamically loaded -->
+          </div>
+        </div>
+
+      </section>
+
     </main>
   </div>
 
@@ -632,6 +728,7 @@
 
     let allArticles = [];
     let breakingList = [];
+    let videosList = [];
 
     // Initialize App
     document.addEventListener('DOMContentLoaded', () => {
@@ -674,40 +771,58 @@
           <span class="truncate font-medium">${p.name}</span>
         </button>
       `).join('');
-      // Set default
-      selectPreset(0);
+      // No default preset selected - remains clean & empty
     }
 
     function selectPreset(idx) {
       const p = PHOTO_PRESETS[idx];
       document.getElementById('inpImageUrl').value = p.url;
       document.getElementById('inpImageCaption').value = p.caption;
-      document.getElementById('prevImg').src = p.url;
+      const prev = document.getElementById('prevImg');
+      if (prev) prev.src = p.url;
+    }
+
+    function attachSmartPaste(textarea) {
+      textarea.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!text) return;
+        const paras = text.split(/\r?\n\s*\r?\n|\n/).map(p => p.trim()).filter(Boolean);
+        if (paras.length > 1) {
+          e.preventDefault();
+          textarea.value = paras[0];
+          for (let i = 1; i < paras.length; i++) {
+            addParagraphField(paras[i]);
+          }
+          showToast(`${paras.length} ഖണ്ഡികകൾ വേർതിരിച്ച് ചേർത്തു!`);
+        }
+      });
     }
 
     function initParagraphFields() {
       const container = document.getElementById('paragraphList');
       container.innerHTML = `
         <div class="flex items-start gap-2">
-          <textarea required rows="2" class="p-text flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" placeholder="ഖണ്ഡിക 1...">സംസ്ഥാനത്ത് സുപ്രധാന വികസന പദ്ധതികൾക്ക് വേഗമേറ്റാൻ മന്ത്രിസഭാ യോഗം തീരുമാനിച്ചു.</textarea>
-        </div>
-        <div class="flex items-start gap-2">
-          <textarea rows="2" class="p-text flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" placeholder="ഖണ്ഡിക 2...">വിവിധ മേഖലകളിലെ വിദഗ്ധരുടെ നിർദേശങ്ങൾ പരിഗണിച്ചാണ് പദ്ധതി രൂപരേഖ തയ്യാറാക്കിയിട്ടുള്ളത്.</textarea>
+          <textarea rows="3" class="p-text flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" placeholder="ഖണ്ഡിക 1... (ഒന്നിലധികം ഖണ്ഡികകൾ പേസ്റ്റ് ചെയ്താലും തനിയെ വേർതിരിയും)"></textarea>
         </div>
       `;
+      const first = container.querySelector('.p-text');
+      if (first) attachSmartPaste(first);
     }
 
-    function addParagraphField() {
+    function addParagraphField(initialVal = '') {
       const container = document.getElementById('paragraphList');
       const div = document.createElement('div');
       div.className = 'flex items-start gap-2 mt-2';
       div.innerHTML = `
-        <textarea rows="2" class="p-text flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" placeholder="അടുത്ത ഖണ്ഡിക..."></textarea>
+        <textarea rows="3" class="p-text flex-1 bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson" placeholder="അടുത്ത ഖണ്ഡിക..."></textarea>
         <button type="button" onclick="this.parentElement.remove()" class="p-2 text-slate-400 hover:text-red-500">
           <i data-lucide="trash-2" class="w-4 h-4"></i>
         </button>
       `;
       container.appendChild(div);
+      const ta = div.querySelector('textarea');
+      if (initialVal) ta.value = initialVal;
+      attachSmartPaste(ta);
       lucide.createIcons();
     }
 
@@ -877,16 +992,18 @@
     }
 
     function switchTab(tab) {
-      const tabs = ['upload', 'manage', 'breaking'];
+      const tabs = ['upload', 'manage', 'breaking', 'videos'];
       tabs.forEach(t => {
         const sec = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Section`);
         const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
-        if (t === tab) {
-          sec.classList.remove('hidden');
-          btn.className = 'tab-btn px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-crimson text-white shadow-md shadow-brand-crimson/20';
-        } else {
-          sec.classList.add('hidden');
-          btn.className = 'tab-btn px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200';
+        if (sec && btn) {
+          if (t === tab) {
+            sec.classList.remove('hidden');
+            btn.className = 'tab-btn px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-brand-crimson text-white shadow-md shadow-brand-crimson/20';
+          } else {
+            sec.classList.add('hidden');
+            btn.className = 'tab-btn px-4 py-2.5 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-200';
+          }
         }
       });
       lucide.createIcons();
@@ -894,15 +1011,18 @@
 
     async function loadAllData() {
       try {
-        const [artRes, brkRes] = await Promise.all([
+        const [artRes, brkRes, vidRes] = await Promise.all([
           fetch(`${API_BASE}/articles?limit=100&_t=${Date.now()}`),
-          fetch(`${API_BASE}/breaking?_t=${Date.now()}`)
+          fetch(`${API_BASE}/breaking?_t=${Date.now()}`),
+          fetch(`${API_BASE}/videos?limit=100&_t=${Date.now()}`)
         ]);
         const artData = await artRes.json();
         const brkData = await brkRes.json();
+        const vidData = await vidRes.json();
 
         allArticles = artData.articles || [];
         breakingList = brkData.breakingNews || [];
+        videosList = vidData.videos || [];
 
         // Update stats
         document.getElementById('statTotalArticles').textContent = allArticles.length;
@@ -911,6 +1031,7 @@
 
         renderArticlesTable(allArticles);
         renderBreakingList(breakingList);
+        renderVideosGrid(videosList);
       } catch (err) {
         showToast('ഡാറ്റ ലോഡ് ചെയ്യുന്നതിൽ പിഴവ് സംഭവിച്ചു', 'error');
       }
@@ -964,6 +1085,8 @@
         showToast('വാർത്ത വിജയകരമായി പ്രസിദ്ധീകരിച്ചു!');
         document.getElementById('inpTitle').value = '';
         document.getElementById('inpLead').value = '';
+        document.getElementById('inpImageUrl').value = '';
+        document.getElementById('inpImageCaption').value = '';
         initParagraphFields();
         loadAllData();
         switchTab('manage');
@@ -1160,6 +1283,103 @@
         if (!res.ok || !data.success) throw new Error(data.error || 'നീക്കം ചെയ്യാൻ സാധിച്ചില്ല');
 
         showToast('ബ്രേക്കിംഗ് ഇനം നീക്കം ചെയ്തു');
+        loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderVideosGrid(list) {
+      const container = document.getElementById('videoItemsGrid');
+      const badge = document.getElementById('videoCountBadge');
+      if (badge) badge.textContent = `${list.length} എണ്ണം`;
+      if (!list || !list.length) {
+        container.innerHTML = `<div class="col-span-full text-xs text-slate-500 text-center py-8">ഡാറ്റാബേസിൽ വീഡിയോകളൊന്നും ലഭ്യമല്ല. മുകളിൽ പുതിയ വീഡിയോ ചേർക്കുക.</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(item => `
+        <div class="group relative rounded-xl overflow-hidden border border-slate-200 bg-white flex flex-col shadow-xs hover:shadow-md transition">
+          <div class="relative aspect-[9/13] bg-neutral-900 overflow-hidden">
+            <img src="${item.thumbnail || 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=400&q=80'}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30"></div>
+            <span class="absolute top-2 left-2 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-brand-crimson text-white">${item.category}</span>
+            <span class="absolute top-2 right-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/60 text-white backdrop-blur">${item.duration}</span>
+            <div class="absolute bottom-2 left-2 right-2 text-white">
+              <h4 class="text-xs font-bold line-clamp-2 leading-snug">${item.title}</h4>
+              <span class="text-[10px] text-amber-300 mt-1 flex items-center gap-1 font-medium">${item.views} views</span>
+            </div>
+          </div>
+          <div class="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+            <a href="${item.videoUrl}" target="_blank" class="text-[11px] font-semibold text-slate-700 hover:text-amber-700 flex items-center gap-1">കാണുക <i data-lucide="external-link" class="w-3 h-3"></i></a>
+            <button onclick="handleDeleteVideo('${item._id}')" class="p-1 rounded text-red-600 hover:bg-red-50 transition" title="നീക്കം ചെയ്യുക">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function handleCreateVideo(e) {
+      e.preventDefault();
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) return handleLogout();
+
+      const btn = document.getElementById('btnCreateVideo');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>അപ്‌ലോഡ് ചെയ്യുന്നു...</span>`;
+      lucide.createIcons();
+
+      const payload = {
+        title: document.getElementById('inpVideoTitle').value.trim(),
+        category: document.getElementById('inpVideoCategory').value,
+        duration: document.getElementById('inpVideoDuration').value.trim() || '01:30',
+        views: document.getElementById('inpVideoViews').value.trim() || '150K',
+        videoUrl: document.getElementById('inpVideoUrl').value.trim(),
+        thumbnail: document.getElementById('inpVideoThumbnail').value.trim(),
+        description: document.getElementById('inpVideoDescription').value.trim(),
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/videos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'വീഡിയോ ചേർക്കാൻ സാധിച്ചില്ല');
+
+        showToast('വീഡിയോ വിജയകരമായി പ്രസിദ്ധീകരിച്ചു!');
+        document.getElementById('inpVideoTitle').value = '';
+        document.getElementById('inpVideoUrl').value = '';
+        document.getElementById('inpVideoThumbnail').value = '';
+        document.getElementById('inpVideoDescription').value = '';
+        loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="upload" class="w-4 h-4"></i><span>വീഡിയോ അപ്‌ലോഡ് ചെയ്യുക</span>`;
+        lucide.createIcons();
+      }
+    }
+
+    async function handleDeleteVideo(id) {
+      if (!confirm('ഈ വീഡിയോ നീക്കം ചെയ്യണമെന്ന് ഉറപ്പാണോ?')) return;
+      const token = localStorage.getItem(TOKEN_KEY);
+      try {
+        const res = await fetch(`${API_BASE}/videos/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'നീക്കം ചെയ്യാൻ സാധിച്ചില്ല');
+
+        showToast('വീഡിയോ നീക്കം ചെയ്തു');
         loadAllData();
       } catch (err) {
         showToast(err.message, 'error');

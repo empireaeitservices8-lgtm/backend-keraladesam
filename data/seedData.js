@@ -253,4 +253,52 @@ const initialBreaking = [
   "കൊച്ചി മെട്രോ കാക്കനാട് പാത നിർമാണം 70% പൂർത്തിയായി: ഡിസംബറിൽ ട്രയൽ റൺ"
 ];
 
-module.exports = { initialArticles, initialBreaking };
+const initialVideos = [
+  {
+    title: "വയനാട് തുരങ്കപാത: റൂട്ട് മാപ്പും 3D ആകാശ ദൃശ്യങ്ങളും പുറത്ത്",
+    category: "DEVELOPMENT",
+    duration: "01:45",
+    views: "420K",
+    viewsCount: 420000,
+    videoUrl: "https://www.youtube.com/watch?v=0U17y9a2q3w",
+    youtubeId: "0U17y9a2q3w",
+    thumbnail: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80",
+    description: "വയനാട് ആനക്കാംപൊയിൽ-കള്ളാടി-മേപ്പാടി ഇരട്ട തുരങ്കപാത റൂട്ട് മാപ്പും 3D ദൃശ്യങ്ങളും."
+  },
+  {
+    title: "മെട്രോ പുതിയ പാത കാക്കനാട്: ട്രയൽ റൺ തത്സമയം കാണാം",
+    category: "METRO",
+    duration: "02:10",
+    views: "285K",
+    viewsCount: 285000,
+    videoUrl: "https://www.youtube.com/watch?v=Ko18SgHA43I",
+    youtubeId: "Ko18SgHA43I",
+    thumbnail: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=600&q=80",
+    description: "കൊച്ചി മെട്രോ രണ്ടാം ഘട്ട കാക്കനാട് പാത നിർമാണ പുരോഗതിയും ട്രയൽ റണ്ണും."
+  },
+  {
+    title: "സൗദി ഗോൾഡൻ റെസിഡൻസി: പ്രവാസികൾ അറിഞ്ഞിരിക്കേണ്ട 5 മാറ്റങ്ങൾ",
+    category: "PRAVASI",
+    duration: "03:15",
+    views: "510K",
+    viewsCount: 510000,
+    videoUrl: "https://www.youtube.com/watch?v=0U17y9a2q3w",
+    youtubeId: "0U17y9a2q3w",
+    thumbnail: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=600&q=80",
+    description: "സൗദി അറേബ്യ പ്രഖ്യാപിച്ച പുതിയ പ്രീമിയം റെസിഡൻസി നിബന്ധനകൾ."
+  },
+  {
+    title: "വേനൽമഴ ശക്തമാകുന്നു: തെക്കൻ ജില്ലകളിൽ അതീവ ജാഗ്രതാ നിർദ്ദേശം",
+    category: "WEATHER",
+    duration: "01:20",
+    views: "190K",
+    viewsCount: 190000,
+    videoUrl: "https://www.youtube.com/watch?v=Ko18SgHA43I",
+    youtubeId: "Ko18SgHA43I",
+    thumbnail: "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=600&q=80",
+    description: "കാലാവസ്ഥാ നിരീക്ഷണ കേന്ദ്രത്തിന്റെ ഏറ്റവും പുതിയ മഴ മുന്നറിയിപ്പ്."
+  }
+];
+
+module.exports = { initialArticles, initialBreaking, initialVideos };
+

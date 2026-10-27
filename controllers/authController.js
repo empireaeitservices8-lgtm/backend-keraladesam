@@ -84,11 +84,11 @@ exports.login = async (req, res) => {
     if (!user) {
       if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
         user = await User.create({
-          name: 'Chief Editor',
+          name: 'ചീഫ് എഡിറ്റർ',
           email: 'admin@keraladesam.com',
           password: 'admin12345',
           role: 'admin',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+          avatar: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
         });
         return sendTokenResponse(user, 200, res, 'Login successful');
       }

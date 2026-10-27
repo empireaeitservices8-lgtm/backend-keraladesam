@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Article = require('../models/Article');
 const BreakingNews = require('../models/BreakingNews');
-const { initialArticles, initialBreaking } = require('../data/seedData');
+const Video = require('../models/Video');
+const { initialArticles, initialBreaking, initialVideos } = require('../data/seedData');
 
 router.post('/', async (req, res) => {
   try {
@@ -28,7 +29,17 @@ router.post('/', async (req, res) => {
       }
     }
 
+    let insertedVideos = 0;
+    const videoCount = await Video.countDocuments();
+    if (videoCount === 0 && Array.isArray(initialVideos)) {
+      for (const vid of initialVideos) {
+        await Video.create(vid);
+        insertedVideos++;
+      }
+    }
+
     const totalInDb = await Article.countDocuments();
+    const totalVideos = await Video.countDocuments();
 
     res.status(200).json({
       success: true,
@@ -36,7 +47,9 @@ router.post('/', async (req, res) => {
       insertedArticles,
       existingArticles,
       insertedBreaking,
+      insertedVideos,
       totalArticlesInDb: totalInDb,
+      totalVideosInDb: totalVideos,
     });
   } catch (error) {
     res.status(500).json({
