@@ -8,7 +8,8 @@ const {
 const { protect } = require('../middleware/auth');
 
 router.post('/', subscribe);
-router.get('/', protect, getSubscribers);
-router.delete('/:id', protect, deleteSubscriber);
+router.get('/', getSubscribers);
+router.delete('/:id', deleteSubscriber);
 
 module.exports = router;
+
