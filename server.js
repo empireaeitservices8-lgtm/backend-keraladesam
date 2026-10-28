@@ -66,6 +66,7 @@ app.use('/api/videos', require('./routes/videoRoutes'));
 app.use('/api/forex', require('./routes/forexRoutes'));
 app.use('/api/tts', require('./routes/ttsRoutes'));
 app.use('/api/seed', require('./routes/seedRoutes'));
+app.use('/api/subscribers', require('./routes/subscriberRoutes'));
 
 app.use((req, res) => {
   res.status(404).json({

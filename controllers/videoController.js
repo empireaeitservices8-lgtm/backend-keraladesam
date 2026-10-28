@@ -1,5 +1,4 @@
 const Video = require('../models/Video');
-const { initialVideos } = require('../data/seedData');
 
 // Helper to extract YouTube video ID from various YouTube URL formats
 function extractYouTubeId(url) {
@@ -29,17 +28,6 @@ exports.getVideos = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     let total = await Video.countDocuments(query);
 
-    // Auto-seed if database has 0 videos
-    if (total === 0 && Object.keys(query).length === 0) {
-      try {
-        if (Array.isArray(initialVideos) && initialVideos.length > 0) {
-          await Video.insertMany(initialVideos);
-          total = await Video.countDocuments(query);
-        }
-      } catch (seedErr) {
-        console.error('Auto-seed videos error:', seedErr.message);
-      }
-    }
 
     const videos = await Video.find(query)
       .sort({ createdAt: -1 })
