@@ -2,8 +2,11 @@ const BreakingNews = require('../models/BreakingNews');
 
 exports.getBreakingNews = async (req, res) => {
   try {
-    let headlines = await BreakingNews.find({ active: true }).sort({ createdAt: -1 });
+    let headlines = await BreakingNews.find({ active: true })
+      .sort({ createdAt: -1 })
+      .lean();
 
+    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
 
     res.status(200).json({
       success: true,

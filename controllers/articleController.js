@@ -29,11 +29,15 @@ exports.getArticles = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     let total = await Article.countDocuments(query);
 
-
     const articles = await Article.find(query)
+      .select('-imageData')
       .sort({ isHeadline: -1, createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    // Vercel Edge CDN Caching: 15s edge cache, 60s stale-while-revalidate for super fast load times
+    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
 
     res.status(200).json({
       success: true,
@@ -54,17 +58,11 @@ exports.getArticles = async (req, res) => {
 exports.getArticleById = async (req, res) => {
   try {
     const { id } = req.params;
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = id && id.match(/^[0-9a-fA-F]{24}$/);
 
-    const article = await Article.findOneAndUpdate(
-      {
-        $or: [{ customId: id }, { _id: isObjectId ? id : null }],
-      },
-      {
-        $inc: { viewsCount: 1 },
-      },
-      { new: true }
-    );
+    const article = isObjectId
+      ? await Article.findById(id).select('-imageData').lean()
+      : await Article.findOne({ customId: id }).select('-imageData').lean();
 
     if (!article) {
       return res.status(404).json({
@@ -72,6 +70,17 @@ exports.getArticleById = async (req, res) => {
         error: 'Article not found',
       });
     }
+
+    // Increment view count asynchronously in background without delaying HTTP response
+    Article.updateOne({ _id: article._id }, { $inc: { viewsCount: 1 } }).catch(() => {});
+
+    // Cache article page at Edge for 30s
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+
+    res.status(200).json({
+      success: true,
+      article,
+    });
 
     // Keep views string synced with viewsCount
     if (article.viewsCount) {

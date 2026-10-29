@@ -28,11 +28,13 @@ exports.getVideos = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     let total = await Video.countDocuments(query);
 
-
     const videos = await Video.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
 
     res.status(200).json({
       success: true,
