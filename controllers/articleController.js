@@ -18,12 +18,29 @@ exports.getArticles = async (req, res) => {
     }
 
     if (search && search.trim()) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { lead: { $regex: search, $options: 'i' } },
-        { tags: { $regex: search, $options: 'i' } },
-        { district: { $regex: search, $options: 'i' } },
+      const cleanSearch = search.trim();
+      const escaped = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      const orConditions = [
+        { title: { $regex: escaped, $options: 'i' } },
+        { lead: { $regex: escaped, $options: 'i' } },
+        { tags: { $regex: escaped, $options: 'i' } },
+        { district: { $regex: escaped, $options: 'i' } },
       ];
+
+      const words = cleanSearch
+        .replace(/['"`’‘“”.,;:!?।\-_/\\()]+/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3)
+        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+      if (words.length > 1) {
+        words.slice(0, 5).forEach((w) => {
+          orConditions.push({ title: { $regex: w, $options: 'i' } });
+        });
+      }
+
+      query.$or = orConditions;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
