@@ -15,6 +15,7 @@ const {
   updateArticle,
   deleteArticle,
   setHeadline,
+  likeArticle,
 } = require('../controllers/articleController');
 const { protect } = require('../middleware/auth');
 
@@ -24,6 +25,7 @@ router.route('/')
   .post(protect, upload.single('image'), createArticle);
 
 router.patch('/:id/headline', protect, setHeadline);
+router.post('/:id/like', likeArticle);
 
 router.route('/:id')
   .get(getArticleById)

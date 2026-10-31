@@ -72,49 +72,57 @@ exports.getArticles = async (req, res) => {
   }
 };
 
+
 exports.getArticleById = async (req, res) => {
   try {
     const { id } = req.params;
-    const isObjectId = id && id.match(/^[0-9a-fA-F]{24}$/);
+    const isObjectId = id && /^[0-9a-fA-F]{24}$/.test(id);
 
     const article = isObjectId
-      ? await Article.findById(id).select('-imageData').lean()
-      : await Article.findOne({ customId: id }).select('-imageData').lean();
+      ? await Article.findById(id).select("-imageData").lean()
+      : await Article.findOne({ customId: id }).select("-imageData").lean();
 
     if (!article) {
       return res.status(404).json({
         success: false,
-        error: 'Article not found',
+        error: "Article not found",
       });
     }
 
-    // Increment view count asynchronously in background without delaying HTTP response
-    Article.updateOne({ _id: article._id }, { $inc: { viewsCount: 1 } }).catch(() => {});
-
-    // Cache article page at Edge for 30s
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
-
-    res.status(200).json({
-      success: true,
-      article,
+    // Update view count in background
+    Article.updateOne(
+      { _id: article._id },
+      { $inc: { viewsCount: 1 } }
+    ).catch((error) => {
+      console.error("View count update failed:", error);
     });
 
-    // Keep views string synced with viewsCount
-    if (article.viewsCount) {
+    // Sync views with current count
+    if (article.viewsCount !== undefined) {
       article.views = String(article.viewsCount);
     }
 
-    res.status(200).json({
+    // Cache article page
+    res.setHeader(
+      "Cache-Control",
+      "s-maxage=30, stale-while-revalidate=120"
+    );
+
+    return res.status(200).json({
       success: true,
       article,
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.error("Get article error:", error);
+
+    return res.status(500).json({
       success: false,
-      error: error.message || 'Failed to fetch article',
+      error: error.message || "Failed to fetch article",
     });
   }
 };
+
 
 // Helper to parse paragraphs robustly from string, array, or JSON
 function parseParagraphs(input, fallbackLead = '') {
@@ -155,7 +163,7 @@ function parseStringArray(input, separator = ',') {
       if (Array.isArray(parsed)) {
         return parsed.map((t) => (typeof t === 'string' ? t.trim() : String(t || '').trim())).filter(Boolean);
       }
-    } catch (e) {}
+    } catch (e) { }
     return input
       .split(separator)
       .map((t) => t.trim().replace(/^#/, ''))
@@ -370,5 +378,42 @@ exports.deleteArticle = async (req, res) => {
       success: false,
       error: error.message || 'Failed to delete article',
     });
+  }
+};
+
+exports.likeArticle = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body || {};
+    const incVal = action === 'unlike' ? -1 : 1;
+    const isObjectId = id && /^[0-9a-fA-F]{24}$/.test(id);
+
+    const query = isObjectId
+      ? { $or: [{ _id: id }, { customId: id }] }
+      : { customId: id };
+
+    const article = await Article.findOneAndUpdate(
+      query,
+      { $inc: { likesCount: incVal } },
+      { new: true }
+    ).select('-imageData').lean();
+
+    if (!article) {
+      return res.status(404).json({ success: false, error: 'Article not found' });
+    }
+
+    let finalLikes = article.likesCount !== undefined ? article.likesCount : 0;
+    if (finalLikes < 0) {
+      await Article.updateOne({ _id: article._id }, { $set: { likesCount: 0 } });
+      finalLikes = 0;
+    }
+
+    return res.status(200).json({
+      success: true,
+      likesCount: finalLikes,
+    });
+  } catch (error) {
+    console.error('Like error:', error);
+    return res.status(500).json({ success: false, error: error.message || 'Failed to update like' });
   }
 };
