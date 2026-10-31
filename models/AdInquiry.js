@@ -49,3 +49,4 @@ const adInquirySchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('AdInquiry', adInquirySchema);
+

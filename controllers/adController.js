@@ -124,3 +124,4 @@ exports.deleteAdInquiry = async (req, res) => {
     });
   }
 };
+

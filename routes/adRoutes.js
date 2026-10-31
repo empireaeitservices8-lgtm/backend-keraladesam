@@ -16,3 +16,4 @@ router.patch('/inquiries/:id', updateAdInquiryStatus);
 router.delete('/inquiries/:id', deleteAdInquiry);
 
 module.exports = router;
+
