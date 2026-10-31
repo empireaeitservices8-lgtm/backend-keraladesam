@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const mysqlService = require('../services/mysqlService');
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.JWTSecretKey || 'secretkey123';
 
@@ -23,7 +24,9 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = process.env.DB_TYPE === 'mysql'
+      ? await mysqlService.getUserById(decoded.id)
+      : await User.findById(decoded.id);
 
     if (!user) {
       return res.status(401).json({

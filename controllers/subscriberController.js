@@ -1,4 +1,5 @@
 const Subscriber = require('../models/Subscriber');
+const mysqlService = require('../services/mysqlService');
 
 exports.subscribe = async (req, res) => {
   try {
@@ -17,6 +18,15 @@ exports.subscribe = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'സാധുവായ ഇമെയിൽ വിലാസം നൽകുക (Invalid email address)',
+      });
+    }
+
+    if (process.env.DB_TYPE === 'mysql') {
+      await mysqlService.createSubscriber(cleanEmail);
+      return res.status(201).json({
+        success: true,
+        message: 'നന്ദി! നിങ്ങളുടെ ഇമെയിൽ വിജയകരമായി രജിസ്റ്റർ ചെയ്തു.',
+        subscriber: { email: cleanEmail, active: true },
       });
     }
 
@@ -51,6 +61,15 @@ exports.subscribe = async (req, res) => {
 
 exports.getSubscribers = async (req, res) => {
   try {
+    if (process.env.DB_TYPE === 'mysql') {
+      const subscribers = await mysqlService.getSubscribers();
+      return res.status(200).json({
+        success: true,
+        count: subscribers.length,
+        subscribers,
+      });
+    }
+
     const subscribers = await Subscriber.find().sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -70,6 +89,21 @@ exports.getSubscribers = async (req, res) => {
 exports.deleteSubscriber = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const deleted = await mysqlService.deleteSubscriber(id);
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Subscriber not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Subscriber deleted successfully',
+      });
+    }
+
     const subscriber = await Subscriber.findByIdAndDelete(id);
 
     if (!subscriber) {

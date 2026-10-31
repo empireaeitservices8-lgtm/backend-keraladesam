@@ -1,4 +1,5 @@
 const Video = require('../models/Video');
+const mysqlService = require('../services/mysqlService');
 
 // Helper to extract YouTube video ID from various YouTube URL formats
 function extractYouTubeId(url) {
@@ -19,6 +20,26 @@ function extractYouTubeId(url) {
 exports.getVideos = async (req, res) => {
   try {
     const { category, limit = 20, page = 1 } = req.query;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const { videos, total } = await mysqlService.getVideos({
+        category,
+        limit,
+        page,
+      });
+
+      res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+
+      return res.status(200).json({
+        success: true,
+        count: videos.length,
+        total,
+        page: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        videos,
+      });
+    }
+
     const query = {};
 
     if (category && category !== 'all' && category !== 'എല്ലാം') {
@@ -58,6 +79,20 @@ exports.getVideos = async (req, res) => {
 exports.getVideoById = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const video = await mysqlService.getVideoById(id);
+      if (!video) {
+        return res.status(404).json({
+          success: false,
+          error: 'Video not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        video,
+      });
+    }
 
     const video = await Video.findByIdAndUpdate(
       id,
@@ -115,6 +150,25 @@ exports.createVideo = async (req, res) => {
       thumbnail = 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=400&q=80';
     }
 
+    if (process.env.DB_TYPE === 'mysql') {
+      const newVideo = await mysqlService.createVideo({
+        title: body.title.trim(),
+        category: body.category ? body.category.trim() : 'വാർത്തകൾ',
+        duration: body.duration ? body.duration.trim() : '01:30',
+        viewsCount: body.viewsCount ? parseInt(body.viewsCount) : 1200,
+        thumbnail,
+        videoUrl,
+        youtubeId,
+        description: body.description ? body.description.trim() : '',
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Video added successfully',
+        video: newVideo,
+      });
+    }
+
     const newVideo = await Video.create({
       title: body.title.trim(),
       category: body.category ? body.category.trim().toUpperCase() : 'KERALA',
@@ -148,6 +202,33 @@ exports.updateVideo = async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body || {};
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const updateData = { ...body };
+      if (body.videoUrl) {
+        const url = body.videoUrl.trim();
+        updateData.videoUrl = url;
+        updateData.youtubeId = extractYouTubeId(url);
+      }
+      if (req.file) {
+        updateData.thumbnail = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      } else if (body.thumbnail) {
+        updateData.thumbnail = body.thumbnail.trim();
+      }
+
+      const updated = await mysqlService.updateVideo(id, updateData);
+      if (!updated) {
+        return res.status(404).json({
+          success: false,
+          error: 'Video not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Video updated successfully',
+        video: updated,
+      });
+    }
 
     let video = await Video.findById(id);
     if (!video) {
@@ -198,6 +279,21 @@ exports.updateVideo = async (req, res) => {
 exports.deleteVideo = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const deleted = await mysqlService.deleteVideo(id);
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Video not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Video deleted successfully',
+        id,
+      });
+    }
 
     const video = await Video.findByIdAndDelete(id);
     if (!video) {

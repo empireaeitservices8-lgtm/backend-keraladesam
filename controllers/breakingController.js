@@ -1,7 +1,18 @@
 const BreakingNews = require('../models/BreakingNews');
+const mysqlService = require('../services/mysqlService');
 
 exports.getBreakingNews = async (req, res) => {
   try {
+    if (process.env.DB_TYPE === 'mysql') {
+      const headlines = await mysqlService.getBreakingNews();
+      res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
+      return res.status(200).json({
+        success: true,
+        count: headlines.length,
+        headlines,
+      });
+    }
+
     let headlines = await BreakingNews.find({ active: true })
       .sort({ createdAt: -1 })
       .lean();
@@ -32,6 +43,15 @@ exports.addBreakingNews = async (req, res) => {
       });
     }
 
+    if (process.env.DB_TYPE === 'mysql') {
+      const item = await mysqlService.createBreakingNews(headline);
+      return res.status(201).json({
+        success: true,
+        message: 'Breaking news added successfully',
+        item,
+      });
+    }
+
     const item = await BreakingNews.create({
       headline: headline.trim(),
       category: category || 'തത്സമയം',
@@ -54,6 +74,21 @@ exports.addBreakingNews = async (req, res) => {
 exports.deleteBreakingNews = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const deleted = await mysqlService.deleteBreakingNews(id);
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Breaking news item not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Breaking news deleted successfully',
+      });
+    }
+
     const item = await BreakingNews.findByIdAndDelete(id);
 
     if (!item) {
@@ -79,6 +114,21 @@ exports.updateBreakingNews = async (req, res) => {
   try {
     const { id } = req.params;
     const { headline, active, category } = req.body;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const item = await mysqlService.updateBreakingNews(id, { headline, active });
+      if (!item) {
+        return res.status(404).json({
+          success: false,
+          error: 'Breaking news item not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Breaking news updated successfully',
+        item,
+      });
+    }
 
     const updateData = {};
     if (headline !== undefined) updateData.headline = headline.trim();

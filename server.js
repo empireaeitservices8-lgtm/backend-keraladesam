@@ -1,10 +1,20 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const connectDB = require('./config/db');
 
 dotenv.config();
-connectDB();
+
+const isMySQL = process.env.DB_TYPE === 'mysql';
+
+if (isMySQL) {
+  const { initMySQLTables } = require('./config/mysql');
+  initMySQLTables()
+    .then(() => console.log('MySQL Database and Tables initialized successfully'))
+    .catch((err) => console.error('MySQL initialization warning:', err.message));
+} else {
+  const connectDB = require('./config/db');
+  connectDB();
+}
 
 const path = require('path');
 const app = express();
@@ -38,10 +48,11 @@ app.get('/', (req, res) => {
   res.redirect(302, 'https://kerala-dhesam.vercel.app/admin');
 });
 
-// Ensure MongoDB connection for serverless invocations
+// Ensure MongoDB connection for serverless invocations if not using MySQL
 app.use(async (req, res, next) => {
-  if (req.path.startsWith('/api')) {
+  if (!isMySQL && req.path.startsWith('/api')) {
     try {
+      const connectDB = require('./config/db');
       await connectDB();
     } catch (e) {
       console.error('Database connection error in request:', e.message);
@@ -51,9 +62,19 @@ app.use(async (req, res, next) => {
 });
 
 app.get('/api/health', (req, res) => {
+  if (isMySQL) {
+    return res.json({
+      status: 'ok',
+      database: 'mysql',
+      service: 'Kerala Desam API',
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   const mongoose = require('mongoose');
   res.json({
     status: mongoose.connection.readyState === 1 ? 'ok' : 'connecting',
+    database: 'mongodb',
     service: 'Kerala Desam API',
     timestamp: new Date().toISOString(),
   });

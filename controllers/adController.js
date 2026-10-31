@@ -1,4 +1,5 @@
 const AdInquiry = require('../models/AdInquiry');
+const mysqlService = require('../services/mysqlService');
 
 // @desc    Submit an advertising inquiry
 // @route   POST /api/ads/inquiry
@@ -11,6 +12,24 @@ exports.createAdInquiry = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'പേരും ഫോൺ നമ്പറും നൽകേണ്ടതാണ് (Name and phone number are required)',
+      });
+    }
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const inquiry = await mysqlService.createAdInquiry({
+        name: name.trim(),
+        companyName: (companyName || '').trim(),
+        phone: phone.trim(),
+        email: (email || '').trim(),
+        adType: adType || 'Digital Banner',
+        budget: (budget || '').trim(),
+        message: (message || '').trim(),
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'പരസ്യ വിവരങ്ങൾ വിജയകരമായി അയച്ചു. ഞങ്ങളുടെ പ്രതിനിധി ഉടൻ ബന്ധപ്പെടും.',
+        inquiry,
       });
     }
 
@@ -44,6 +63,15 @@ exports.createAdInquiry = async (req, res) => {
 // @access  Private/Admin
 exports.getAdInquiries = async (req, res) => {
   try {
+    if (process.env.DB_TYPE === 'mysql') {
+      const inquiries = await mysqlService.getAdInquiries();
+      return res.status(200).json({
+        success: true,
+        count: inquiries.length,
+        inquiries,
+      });
+    }
+
     const inquiries = await AdInquiry.find().sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
@@ -70,6 +98,20 @@ exports.updateAdInquiryStatus = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Invalid status value',
+      });
+    }
+
+    if (process.env.DB_TYPE === 'mysql') {
+      const inquiry = await mysqlService.updateAdInquiryStatus(req.params.id, status);
+      if (!inquiry) {
+        return res.status(404).json({
+          success: false,
+          error: 'Ad inquiry not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        inquiry,
       });
     }
 
@@ -104,6 +146,20 @@ exports.updateAdInquiryStatus = async (req, res) => {
 // @access  Private/Admin
 exports.deleteAdInquiry = async (req, res) => {
   try {
+    if (process.env.DB_TYPE === 'mysql') {
+      const deleted = await mysqlService.deleteAdInquiry(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Ad inquiry not found',
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: 'Inquiry deleted successfully',
+      });
+    }
+
     const inquiry = await AdInquiry.findByIdAndDelete(req.params.id);
     if (!inquiry) {
       return res.status(404).json({
