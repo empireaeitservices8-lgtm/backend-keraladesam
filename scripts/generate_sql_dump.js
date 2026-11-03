@@ -8,7 +8,7 @@ async function exportDump() {
   let dump = `-- Kerala Desam MySQL Database Dump\n-- Generated on: ${new Date().toISOString()}\n-- Compatible with MySQL 5.7+ / 8.0+ / MariaDB / cPanel phpMyAdmin\n\n`;
   dump += `CREATE DATABASE IF NOT EXISTS \`keraladesam_db\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\nUSE \`keraladesam_db\`;\n\nSET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n\n`;
 
-  const tables = ['users', 'articles', 'breaking_news', 'videos', 'subscribers', 'ad_inquiries'];
+  const tables = ['users', 'articles', 'breaking_news', 'videos', 'subscribers', 'ad_inquiries', 'photo_stories'];
 
   for (const table of tables) {
     const [createTableResult] = await p.query(`SHOW CREATE TABLE \`${table}\``);
@@ -48,3 +48,4 @@ exportDump().catch((err) => {
   console.error('Export failed:', err);
   process.exit(1);
 });
+

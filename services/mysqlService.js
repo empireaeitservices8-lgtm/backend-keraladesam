@@ -544,6 +544,57 @@ async function deleteAdInquiry(id) {
   return res.affectedRows > 0;
 }
 
+// ----------------- PHOTO STORY SERVICE -----------------
+async function getPhotoStory() {
+  const rows = await query('SELECT * FROM photo_stories ORDER BY id DESC LIMIT 1');
+  if (rows.length === 0) {
+    return {
+      tagLabel: 'PHOTO STORY',
+      subtitle: 'KERALA IN FRAMES',
+      title: 'കുട്ടനാടൻ കായൽ ജീവിതം: വേനൽമഴയുടെ വരവറിയിച്ച് ഓളങ്ങൾ',
+      description: "Visual captures of life, landscapes, and backwaters across God's Own Country.",
+      images: [
+        { url: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 1' },
+        { url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 2' },
+        { url: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 3' },
+      ],
+    };
+  }
+  const r = rows[0];
+  let images = [];
+  try {
+    images = typeof r.images === 'string' ? JSON.parse(r.images) : r.images || [];
+  } catch {
+    images = [];
+  }
+  return {
+    id: r.id,
+    tagLabel: r.tag_label || 'PHOTO STORY',
+    subtitle: r.subtitle || 'KERALA IN FRAMES',
+    title: r.title,
+    description: r.description || '',
+    images,
+    updatedAt: r.updated_at,
+  };
+}
+
+async function updatePhotoStory({ tagLabel, subtitle, title, description, images }) {
+  const rows = await query('SELECT id FROM photo_stories ORDER BY id DESC LIMIT 1');
+  const imgJson = JSON.stringify(images || []);
+  if (rows.length === 0) {
+    await query(
+      'INSERT INTO photo_stories (tag_label, subtitle, title, description, images) VALUES (?, ?, ?, ?, ?)',
+      [tagLabel || 'PHOTO STORY', subtitle || 'KERALA IN FRAMES', title, description || '', imgJson]
+    );
+  } else {
+    await query(
+      'UPDATE photo_stories SET tag_label = ?, subtitle = ?, title = ?, description = ?, images = ? WHERE id = ?',
+      [tagLabel || 'PHOTO STORY', subtitle || 'KERALA IN FRAMES', title, description || '', imgJson, rows[0].id]
+    );
+  }
+  return getPhotoStory();
+}
+
 module.exports = {
   // Auth
   getUserByEmail,
@@ -578,4 +629,7 @@ module.exports = {
   createAdInquiry,
   updateAdInquiryStatus,
   deleteAdInquiry,
+  // Photo Story
+  getPhotoStory,
+  updatePhotoStory,
 };

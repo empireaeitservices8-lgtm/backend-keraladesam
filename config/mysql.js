@@ -144,6 +144,40 @@ async function initMySQLTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    // 7. Photo Stories Table
+    await p.query(`
+      CREATE TABLE IF NOT EXISTS photo_stories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tag_label VARCHAR(100) DEFAULT 'PHOTO STORY',
+        subtitle VARCHAR(150) DEFAULT 'KERALA IN FRAMES',
+        title TEXT NOT NULL,
+        description TEXT,
+        images JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // Seed default photo story if none exists
+    const [existingStories] = await p.query('SELECT id FROM photo_stories LIMIT 1');
+    if (existingStories.length === 0) {
+      const defaultImages = JSON.stringify([
+        { url: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 1' },
+        { url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 2' },
+        { url: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 3' },
+      ]);
+      await p.query(
+        'INSERT INTO photo_stories (tag_label, subtitle, title, description, images) VALUES (?, ?, ?, ?, ?)',
+        [
+          'PHOTO STORY',
+          'KERALA IN FRAMES',
+          'കുട്ടനാടൻ കായൽ ജീവിതം: വേനൽമഴയുടെ വരവറിയിച്ച് ഓളങ്ങൾ',
+          "Visual captures of life, landscapes, and backwaters across God's Own Country.",
+          defaultImages,
+        ]
+      );
+    }
+
     // Seed default admin user if not exists
     const [existingAdmin] = await p.query('SELECT id FROM users WHERE email = ?', ['admin@keraladesam.com']);
     if (existingAdmin.length === 0) {
