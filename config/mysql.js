@@ -186,7 +186,7 @@ async function initMySQLTables() {
       await p.query(
         'INSERT INTO users (name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?)',
         [
-          'ചീഫ് എഡിറ്റർ',
+          'എഡിറ്റർ',
           'admin@keraladesam.com',
           hashedPassword,
           'admin',

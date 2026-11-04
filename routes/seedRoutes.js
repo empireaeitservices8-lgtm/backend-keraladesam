@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const Article = require('../models/Article');
-const BreakingNews = require('../models/BreakingNews');
-const Video = require('../models/Video');
+const mysqlService = require('../services/mysqlService');
 const { initialArticles, initialBreaking, initialVideos } = require('../data/seedData');
+const { query } = require('../config/mysql');
 
 router.post('/', async (req, res) => {
   try {
@@ -11,9 +10,9 @@ router.post('/', async (req, res) => {
     let existingArticles = 0;
 
     for (const item of initialArticles) {
-      const exists = await Article.findOne({ customId: item.customId });
-      if (!exists) {
-        await Article.create(item);
+      const rows = await query('SELECT id FROM articles WHERE custom_id = ? LIMIT 1', [item.customId]);
+      if (rows.length === 0) {
+        await mysqlService.createArticle(item);
         insertedArticles++;
       } else {
         existingArticles++;
@@ -21,35 +20,35 @@ router.post('/', async (req, res) => {
     }
 
     let insertedBreaking = 0;
-    const breakingCount = await BreakingNews.countDocuments();
-    if (breakingCount === 0) {
+    const breakingRows = await query('SELECT COUNT(*) as count FROM breaking_news');
+    if (breakingRows[0].count === 0) {
       for (const text of initialBreaking) {
-        await BreakingNews.create({ headline: text, active: true });
+        await mysqlService.createBreakingNews(text);
         insertedBreaking++;
       }
     }
 
     let insertedVideos = 0;
-    const videoCount = await Video.countDocuments();
-    if (videoCount === 0 && Array.isArray(initialVideos)) {
+    const videoRows = await query('SELECT COUNT(*) as count FROM videos');
+    if (videoRows[0].count === 0 && Array.isArray(initialVideos)) {
       for (const vid of initialVideos) {
-        await Video.create(vid);
+        await mysqlService.createVideo(vid);
         insertedVideos++;
       }
     }
 
-    const totalInDb = await Article.countDocuments();
-    const totalVideos = await Video.countDocuments();
+    const totalArticlesRows = await query('SELECT COUNT(*) as count FROM articles');
+    const totalVideosRows = await query('SELECT COUNT(*) as count FROM videos');
 
     res.status(200).json({
       success: true,
-      message: 'Database seeded successfully',
+      message: 'MySQL Database seeded successfully',
       insertedArticles,
       existingArticles,
       insertedBreaking,
       insertedVideos,
-      totalArticlesInDb: totalInDb,
-      totalVideosInDb: totalVideos,
+      totalArticlesInDb: totalArticlesRows[0]?.count || 0,
+      totalVideosInDb: totalVideosRows[0]?.count || 0,
     });
   } catch (error) {
     res.status(500).json({

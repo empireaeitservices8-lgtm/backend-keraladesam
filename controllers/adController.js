@@ -1,4 +1,3 @@
-const AdInquiry = require('../models/AdInquiry');
 const mysqlService = require('../services/mysqlService');
 
 // @desc    Submit an advertising inquiry
@@ -15,29 +14,7 @@ exports.createAdInquiry = async (req, res) => {
       });
     }
 
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        const inquiry = await mysqlService.createAdInquiry({
-          name: name.trim(),
-          companyName: (companyName || '').trim(),
-          phone: phone.trim(),
-          email: (email || '').trim(),
-          adType: adType || 'Digital Banner',
-          budget: (budget || '').trim(),
-          message: (message || '').trim(),
-        });
-
-        return res.status(201).json({
-          success: true,
-          message: 'പരസ്യ വിവരങ്ങൾ വിജയകരമായി അയച്ചു. ഞങ്ങളുടെ പ്രതിനിധി ഉടൻ ബന്ധപ്പെടും.',
-          inquiry,
-        });
-      } catch (mysqlErr) {
-        console.warn('MySQL createAdInquiry failed, falling back to MongoDB:', mysqlErr.message);
-      }
-    }
-
-    const inquiry = await AdInquiry.create({
+    const inquiry = await mysqlService.createAdInquiry({
       name: name.trim(),
       companyName: (companyName || '').trim(),
       phone: phone.trim(),
@@ -45,10 +22,9 @@ exports.createAdInquiry = async (req, res) => {
       adType: adType || 'Digital Banner',
       budget: (budget || '').trim(),
       message: (message || '').trim(),
-      status: 'New',
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'പരസ്യ വിവരങ്ങൾ വിജയകരമായി അയച്ചു. ഞങ്ങളുടെ പ്രതിനിധി ഉടൻ ബന്ധപ്പെടും.',
       inquiry,
@@ -67,21 +43,8 @@ exports.createAdInquiry = async (req, res) => {
 // @access  Private/Admin
 exports.getAdInquiries = async (req, res) => {
   try {
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        const inquiries = await mysqlService.getAdInquiries();
-        return res.status(200).json({
-          success: true,
-          count: inquiries.length,
-          inquiries,
-        });
-      } catch (mysqlErr) {
-        console.warn('MySQL getAdInquiries failed, falling back to MongoDB:', mysqlErr.message);
-      }
-    }
-
-    const inquiries = await AdInquiry.find().sort({ createdAt: -1 });
-    res.status(200).json({
+    const inquiries = await mysqlService.getAdInquiries();
+    return res.status(200).json({
       success: true,
       count: inquiries.length,
       inquiries,
@@ -128,26 +91,7 @@ exports.updateAdInquiryStatus = async (req, res) => {
       });
     }
 
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        const inquiry = await mysqlService.updateAdInquiryStatus(req.params.id, normalizedStatus);
-        if (inquiry) {
-          return res.status(200).json({
-            success: true,
-            inquiry,
-          });
-        }
-      } catch (mysqlErr) {
-        console.warn('MySQL updateAdInquiryStatus failed, trying MongoDB fallback:', mysqlErr.message);
-      }
-    }
-
-    const inquiry = await AdInquiry.findByIdAndUpdate(
-      req.params.id,
-      { status: normalizedStatus },
-      { new: true, runValidators: true }
-    );
-
+    const inquiry = await mysqlService.updateAdInquiryStatus(req.params.id, normalizedStatus);
     if (!inquiry) {
       return res.status(404).json({
         success: false,
@@ -155,7 +99,7 @@ exports.updateAdInquiryStatus = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       inquiry,
     });
@@ -173,29 +117,15 @@ exports.updateAdInquiryStatus = async (req, res) => {
 // @access  Private/Admin
 exports.deleteAdInquiry = async (req, res) => {
   try {
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        const deleted = await mysqlService.deleteAdInquiry(req.params.id);
-        if (deleted) {
-          return res.status(200).json({
-            success: true,
-            message: 'Inquiry deleted successfully',
-          });
-        }
-      } catch (mysqlErr) {
-        console.warn('MySQL deleteAdInquiry failed, trying MongoDB fallback:', mysqlErr.message);
-      }
-    }
-
-    const inquiry = await AdInquiry.findByIdAndDelete(req.params.id);
-    if (!inquiry) {
+    const deleted = await mysqlService.deleteAdInquiry(req.params.id);
+    if (!deleted) {
       return res.status(404).json({
         success: false,
         error: 'Ad inquiry not found',
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Inquiry deleted successfully',
     });

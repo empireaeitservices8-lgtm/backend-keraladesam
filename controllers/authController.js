@@ -1,4 +1,3 @@
-const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const mysqlService = require('../services/mysqlService');
 
@@ -46,26 +45,7 @@ exports.register = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const existingUser = await mysqlService.getUserByEmail(cleanEmail);
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          error: 'An account with this email already exists',
-        });
-      }
-
-      const user = await mysqlService.createUser({
-        name: name.trim(),
-        email: cleanEmail,
-        password,
-        role: role === 'admin' ? 'admin' : 'editor',
-      });
-
-      return sendTokenResponse(user, 201, res, 'Registration successful');
-    }
-
-    const existingUser = await User.findOne({ email: cleanEmail });
+    const existingUser = await mysqlService.getUserByEmail(cleanEmail);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -73,14 +53,14 @@ exports.register = async (req, res) => {
       });
     }
 
-    const user = await User.create({
+    const user = await mysqlService.createUser({
       name: name.trim(),
       email: cleanEmail,
       password,
       role: role === 'admin' ? 'admin' : 'editor',
     });
 
-    sendTokenResponse(user, 201, res, 'Registration successful');
+    return sendTokenResponse(user, 201, res, 'Registration successful');
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -102,48 +82,13 @@ exports.login = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    if (process.env.DB_TYPE === 'mysql') {
-      let user = await mysqlService.getUserByEmail(cleanEmail);
-
-      // Auto-create default admin account on-demand if it doesn't exist
-      if (!user) {
-        if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
-          user = await mysqlService.createUser({
-            name: 'ചീഫ് എഡിറ്റർ',
-            email: 'admin@keraladesam.com',
-            password: 'admin12345',
-            role: 'admin',
-            avatar: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
-          });
-          return sendTokenResponse(user, 200, res, 'Login successful');
-        }
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid email or password',
-        });
-      }
-
-      const isMatch = await user.matchPassword(password);
-      if (!isMatch) {
-        if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
-          return sendTokenResponse(user, 200, res, 'Login successful');
-        }
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid email or password',
-        });
-      }
-
-      return sendTokenResponse(user, 200, res, 'Login successful');
-    }
-
-    let user = await User.findOne({ email: cleanEmail }).select('+password');
+    let user = await mysqlService.getUserByEmail(cleanEmail);
 
     // Auto-create default admin account on-demand if it doesn't exist
     if (!user) {
       if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
-        user = await User.create({
-          name: 'ചീഫ് എഡിറ്റർ',
+        user = await mysqlService.createUser({
+          name: 'എഡിറ്റർ',
           email: 'admin@keraladesam.com',
           password: 'admin12345',
           role: 'admin',
@@ -159,7 +104,6 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      // If logging in as admin with default password, allow and authenticate
       if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
         return sendTokenResponse(user, 200, res, 'Login successful');
       }
@@ -169,7 +113,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    sendTokenResponse(user, 200, res, 'Login successful');
+    return sendTokenResponse(user, 200, res, 'Login successful');
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -180,9 +124,7 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = process.env.DB_TYPE === 'mysql'
-      ? await mysqlService.getUserById(req.user.id)
-      : await User.findById(req.user.id);
+    const user = await mysqlService.getUserById(req.user.id);
 
     if (!user) {
       return res.status(404).json({

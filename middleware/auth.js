@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 const mysqlService = require('../services/mysqlService');
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.JWTSecretKey || 'secretkey123';
@@ -24,23 +23,7 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    let user = null;
-
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        user = await mysqlService.getUserById(decoded.id);
-      } catch (mysqlErr) {
-        console.warn('MySQL getUserById failed, falling back to MongoDB:', mysqlErr.message);
-      }
-    }
-
-    if (!user) {
-      try {
-        user = await User.findById(decoded.id);
-      } catch (mongoErr) {
-        console.warn('MongoDB User.findById failed:', mongoErr.message);
-      }
-    }
+    const user = await mysqlService.getUserById(decoded.id);
 
     if (!user) {
       return res.status(401).json({

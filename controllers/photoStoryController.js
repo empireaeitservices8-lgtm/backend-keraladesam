@@ -1,4 +1,3 @@
-const PhotoStory = require('../models/PhotoStory');
 const mysqlService = require('../services/mysqlService');
 
 const DEFAULT_PHOTO_STORY = {
@@ -27,50 +26,15 @@ const DEFAULT_PHOTO_STORY = {
 // @access  Public
 exports.getPhotoStory = async (req, res) => {
   try {
-    // 1. If configured for MySQL, try fetching from MySQL first
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        const photoStory = await mysqlService.getPhotoStory();
-        if (photoStory) {
-          res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
-          return res.status(200).json({
-            success: true,
-            photoStory,
-          });
-        }
-      } catch (mysqlErr) {
-        console.warn('MySQL getPhotoStory failed or not connected, trying MongoDB fallback:', mysqlErr.message);
-      }
-    }
-
-    // 2. Try fetching from MongoDB (default in cloud / Vercel serverless)
-    try {
-      let story = await PhotoStory.findOne().sort({ updatedAt: -1 }).lean();
-      if (!story) {
-        try {
-          story = await PhotoStory.create(DEFAULT_PHOTO_STORY);
-        } catch {
-          story = DEFAULT_PHOTO_STORY;
-        }
-      }
-      res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
-      return res.status(200).json({
-        success: true,
-        photoStory: story,
-      });
-    } catch (mongoErr) {
-      console.warn('MongoDB getPhotoStory query failed, using default fallback:', mongoErr.message);
-    }
-
-    // 3. Fallback to default photo story to guarantee 200 OK
+    const photoStory = await mysqlService.getPhotoStory();
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
     return res.status(200).json({
       success: true,
-      photoStory: DEFAULT_PHOTO_STORY,
+      photoStory: photoStory || DEFAULT_PHOTO_STORY,
     });
   } catch (error) {
     console.error('Get photo story error handler:', error);
-    // Always return 200 with default story so frontend and console never fail
+    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=60');
     return res.status(200).json({
       success: true,
       photoStory: DEFAULT_PHOTO_STORY,
@@ -100,40 +64,12 @@ exports.updatePhotoStory = async (req, res) => {
       images: Array.isArray(images) ? images : [],
     };
 
-    let updatedResult = null;
-
-    // 1. If configured for MySQL, update MySQL
-    if (process.env.DB_TYPE === 'mysql') {
-      try {
-        updatedResult = await mysqlService.updatePhotoStory(storyData);
-      } catch (mysqlErr) {
-        console.warn('MySQL updatePhotoStory failed, trying MongoDB fallback:', mysqlErr.message);
-      }
-    }
-
-    // 2. Update/Upsert in MongoDB
-    try {
-      let existing = await PhotoStory.findOne().sort({ updatedAt: -1 });
-      if (existing) {
-        existing.tagLabel = storyData.tagLabel;
-        existing.subtitle = storyData.subtitle;
-        existing.title = storyData.title;
-        existing.description = storyData.description;
-        existing.images = storyData.images;
-        const saved = await existing.save();
-        if (!updatedResult) updatedResult = saved;
-      } else {
-        const created = await PhotoStory.create(storyData);
-        if (!updatedResult) updatedResult = created;
-      }
-    } catch (mongoErr) {
-      console.warn('MongoDB updatePhotoStory error:', mongoErr.message);
-    }
+    const updated = await mysqlService.updatePhotoStory(storyData);
 
     return res.status(200).json({
       success: true,
       message: 'Photo Story updated successfully',
-      photoStory: updatedResult || storyData,
+      photoStory: updated || storyData,
     });
   } catch (error) {
     console.error('Update photo story error:', error);

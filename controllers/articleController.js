@@ -1,86 +1,21 @@
-const Article = require('../models/Article');
 const mysqlService = require('../services/mysqlService');
 
 exports.getArticles = async (req, res) => {
   try {
     const { category, search, trending, district, limit = 50, page = 1 } = req.query;
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const { articles, total } = await mysqlService.getArticles({
-        category,
-        district,
-        search,
-        trending,
-        limit,
-        page,
-      });
+    const { articles, total } = await mysqlService.getArticles({
+      category,
+      district,
+      search,
+      trending,
+      limit,
+      page,
+    });
 
-      res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
-
-      return res.status(200).json({
-        success: true,
-        count: articles.length,
-        total,
-        page: parseInt(page),
-        totalPages: Math.ceil(total / parseInt(limit)),
-        articles,
-      });
-    }
-
-    const query = {};
-
-    if (category && category !== 'all' && category !== 'എല്ലാം') {
-      query.category = { $regex: category, $options: 'i' };
-    }
-
-    if (trending === 'true') {
-      query.trending = true;
-    }
-
-    if (district && district !== 'all' && district !== 'എല്ലാം') {
-      query.district = { $regex: district, $options: 'i' };
-    }
-
-    if (search && search.trim()) {
-      const cleanSearch = search.trim();
-      const escaped = cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-      const orConditions = [
-        { title: { $regex: escaped, $options: 'i' } },
-        { lead: { $regex: escaped, $options: 'i' } },
-        { tags: { $regex: escaped, $options: 'i' } },
-        { district: { $regex: escaped, $options: 'i' } },
-      ];
-
-      const words = cleanSearch
-        .replace(/['"`’‘“”.,;:!?।\-_/\\()]+/g, ' ')
-        .split(/\s+/)
-        .filter((w) => w.length >= 3)
-        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-
-      if (words.length > 1) {
-        words.slice(0, 5).forEach((w) => {
-          orConditions.push({ title: { $regex: w, $options: 'i' } });
-        });
-      }
-
-      query.$or = orConditions;
-    }
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    let total = await Article.countDocuments(query);
-
-    const articles = await Article.find(query)
-      .select('-imageData')
-      .sort({ isHeadline: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit))
-      .lean();
-
-    // Vercel Edge CDN Caching: 15s edge cache, 60s stale-while-revalidate for super fast load times
     res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: articles.length,
       total,
@@ -96,73 +31,31 @@ exports.getArticles = async (req, res) => {
   }
 };
 
-
 exports.getArticleById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const article = await mysqlService.getArticleById(id);
-      if (!article) {
-        return res.status(404).json({
-          success: false,
-          error: 'Article not found',
-        });
-      }
-      res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
-      return res.status(200).json({
-        success: true,
-        article,
-      });
-    }
-
-    const isObjectId = id && /^[0-9a-fA-F]{24}$/.test(id);
-
-    const article = isObjectId
-      ? await Article.findById(id).select("-imageData").lean()
-      : await Article.findOne({ customId: id }).select("-imageData").lean();
-
+    const article = await mysqlService.getArticleById(id);
     if (!article) {
       return res.status(404).json({
         success: false,
-        error: "Article not found",
+        error: 'Article not found',
       });
     }
 
-    // Update view count in background
-    Article.updateOne(
-      { _id: article._id },
-      { $inc: { viewsCount: 1 } }
-    ).catch((error) => {
-      console.error("View count update failed:", error);
-    });
-
-    // Sync views with current count
-    if (article.viewsCount !== undefined) {
-      article.views = String(article.viewsCount);
-    }
-
-    // Cache article page
-    res.setHeader(
-      "Cache-Control",
-      "s-maxage=30, stale-while-revalidate=120"
-    );
-
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
     return res.status(200).json({
       success: true,
       article,
     });
-
   } catch (error) {
-    console.error("Get article error:", error);
-
+    console.error('Get article error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to fetch article",
+      error: error.message || 'Failed to fetch article',
     });
   }
 };
-
 
 // Helper to parse paragraphs robustly from string, array, or JSON
 function parseParagraphs(input, fallbackLead = '') {
@@ -247,62 +140,7 @@ exports.createArticle = async (req, res) => {
 
     const isHeadline = Boolean(body.isHeadline === true || body.isHeadline === 'true');
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const newArticle = await mysqlService.createArticle({
-        customId,
-        title: body.title.trim(),
-        lead,
-        category: body.category.trim(),
-        categoryColor: body.categoryColor || '#C8102E',
-        imageUrl,
-        imageCaption: body.imageCaption ? body.imageCaption.trim() : '',
-        readTime: body.readTime || '3 മിനിറ്റ് വായന',
-        audioDuration: body.audioDuration || '03:00',
-        paragraphs,
-        highlights: parseStringArray(body.highlights, '\n'),
-        author: body.author || {
-          name:
-            req.user?.name && req.user.name !== 'Chief Editor'
-              ? req.user.name
-              : 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
-          designation: req.user?.role === 'admin' ? 'ചീഫ് എഡിറ്റർ' : 'ഡെസ്ക് റിപ്പോർട്ടർ',
-          location: 'കേരളം',
-          avatar:
-            req.user?.avatar && !req.user.avatar.includes('534528741775')
-              ? req.user.avatar
-              : 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
-          verified: true,
-        },
-        district: body.district ? body.district.trim() : '',
-        country: body.country ? body.country.trim() : '',
-        views: '1',
-        viewsCount: 1,
-        tags: parseStringArray(body.tags, ','),
-        isTrending: Boolean(body.trending === true || body.trending === 'true'),
-        isBreaking: Boolean(body.breaking === true || body.breaking === 'true'),
-        isHeadline,
-        publishedAt: new Date().toLocaleString('ml-IN', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        }),
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Article created successfully',
-        article: newArticle,
-      });
-    }
-
-    if (isHeadline) {
-      await Article.updateMany({ isHeadline: true }, { isHeadline: false });
-    }
-
-    const newArticle = await Article.create({
+    const newArticle = await mysqlService.createArticle({
       customId,
       title: body.title.trim(),
       lead,
@@ -316,10 +154,10 @@ exports.createArticle = async (req, res) => {
       highlights: parseStringArray(body.highlights, '\n'),
       author: body.author || {
         name:
-          req.user?.name && req.user.name !== 'Chief Editor'
+          req.user?.name && req.user.name !== 'Chief Editor' && req.user.name !== 'Editor'
             ? req.user.name
             : 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
-        designation: req.user?.role === 'admin' ? 'ചീഫ് എഡിറ്റർ' : 'ഡെസ്ക് റിപ്പോർട്ടർ',
+        designation: req.user?.role === 'admin' ? 'എഡിറ്റർ' : 'ഡെസ്ക് റിപ്പോർട്ടർ',
         location: 'കേരളം',
         avatar:
           req.user?.avatar && !req.user.avatar.includes('534528741775')
@@ -332,8 +170,8 @@ exports.createArticle = async (req, res) => {
       views: '1',
       viewsCount: 1,
       tags: parseStringArray(body.tags, ','),
-      trending: Boolean(body.trending === true || body.trending === 'true'),
-      breaking: Boolean(body.breaking === true || body.breaking === 'true'),
+      isTrending: Boolean(body.trending === true || body.trending === 'true'),
+      isBreaking: Boolean(body.breaking === true || body.breaking === 'true'),
       isHeadline,
       publishedAt: new Date().toLocaleString('ml-IN', {
         year: 'numeric',
@@ -345,7 +183,7 @@ exports.createArticle = async (req, res) => {
       }),
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Article created successfully',
       article: newArticle,
@@ -362,7 +200,6 @@ exports.createArticle = async (req, res) => {
 exports.updateArticle = async (req, res) => {
   try {
     const { id } = req.params;
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
     const body = { ...(req.body || {}) };
 
     if (body.paragraphs) {
@@ -374,51 +211,16 @@ exports.updateArticle = async (req, res) => {
     if (body.highlights) {
       body.highlights = parseStringArray(body.highlights, '\n');
     }
-    if (body.trending !== undefined) {
-      body.trending = Boolean(body.trending === true || body.trending === 'true');
-    }
-    if (body.breaking !== undefined) {
-      body.breaking = Boolean(body.breaking === true || body.breaking === 'true');
-    }
-    if (body.isHeadline !== undefined) {
-      const isH = Boolean(body.isHeadline === true || body.isHeadline === 'true');
-      if (isH) {
-        await Article.updateMany({ isHeadline: true }, { isHeadline: false });
-      }
-      body.isHeadline = isH;
-    }
-
     if (!body.imageUrl && req.file) {
       body.imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const updateData = { ...body };
-      if (body.trending !== undefined) updateData.isTrending = body.trending;
-      if (body.breaking !== undefined) updateData.isBreaking = body.breaking;
-      if (body.isHeadline !== undefined) updateData.isHeadline = body.isHeadline;
+    const updateData = { ...body };
+    if (body.trending !== undefined) updateData.isTrending = Boolean(body.trending === true || body.trending === 'true');
+    if (body.breaking !== undefined) updateData.isBreaking = Boolean(body.breaking === true || body.breaking === 'true');
+    if (body.isHeadline !== undefined) updateData.isHeadline = Boolean(body.isHeadline === true || body.isHeadline === 'true');
 
-      const article = await mysqlService.updateArticle(id, updateData);
-      if (!article) {
-        return res.status(404).json({
-          success: false,
-          error: 'Article not found',
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: 'Article updated successfully',
-        article,
-      });
-    }
-
-    const article = await Article.findOneAndUpdate(
-      { $or: [{ customId: id }, { _id: isObjectId ? id : null }] },
-      { $set: body },
-      { new: true, runValidators: true }
-    );
-
+    const article = await mysqlService.updateArticle(id, updateData);
     if (!article) {
       return res.status(404).json({
         success: false,
@@ -426,7 +228,7 @@ exports.updateArticle = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Article updated successfully',
       article,
@@ -444,36 +246,15 @@ exports.setHeadline = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const result = await mysqlService.setHeadline(id);
-      if (!result) {
-        return res.status(404).json({ success: false, error: 'Article not found' });
-      }
-      return res.status(200).json({
-        success: true,
-        message: result.isHeadline ? 'Article set as main headline' : 'Headline pin removed',
-        article: result.article,
-        isHeadline: result.isHeadline,
-      });
-    }
-
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
-    const filter = { $or: [{ customId: id }, { _id: isObjectId ? id : null }] };
-    const article = await Article.findOne(filter);
-    if (!article) {
+    const result = await mysqlService.setHeadline(id);
+    if (!result) {
       return res.status(404).json({ success: false, error: 'Article not found' });
     }
-    const targetState = !article.isHeadline;
-    if (targetState) {
-      await Article.updateMany({ isHeadline: true }, { isHeadline: false });
-    }
-    article.isHeadline = targetState;
-    await article.save();
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: targetState ? 'Article set as main headline' : 'Headline pin removed',
-      article,
-      isHeadline: targetState,
+      message: result.isHeadline ? 'Article set as main headline' : 'Headline pin removed',
+      article: result.article,
+      isHeadline: result.isHeadline,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -484,34 +265,14 @@ exports.deleteArticle = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const deleted = await mysqlService.deleteArticle(id);
-      if (!deleted) {
-        return res.status(404).json({
-          success: false,
-          error: 'Article not found',
-        });
-      }
-      return res.status(200).json({
-        success: true,
-        message: 'Article deleted successfully',
-      });
-    }
-
-    const isObjectId = id.match(/^[0-9a-fA-F]{24}$/);
-
-    const article = await Article.findOneAndDelete({
-      $or: [{ customId: id }, { _id: isObjectId ? id : null }],
-    });
-
-    if (!article) {
+    const deleted = await mysqlService.deleteArticle(id);
+    if (!deleted) {
       return res.status(404).json({
         success: false,
         error: 'Article not found',
       });
     }
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Article deleted successfully',
     });
@@ -528,43 +289,13 @@ exports.likeArticle = async (req, res) => {
     const { id } = req.params;
     const { action } = req.body || {};
 
-    if (process.env.DB_TYPE === 'mysql') {
-      const resLikes = await mysqlService.likeArticle(id, action);
-      if (!resLikes) {
-        return res.status(404).json({ success: false, error: 'Article not found' });
-      }
-      return res.status(200).json({
-        success: true,
-        likesCount: resLikes.likesCount,
-      });
-    }
-
-    const incVal = action === 'unlike' ? -1 : 1;
-    const isObjectId = id && /^[0-9a-fA-F]{24}$/.test(id);
-
-    const query = isObjectId
-      ? { $or: [{ _id: id }, { customId: id }] }
-      : { customId: id };
-
-    const article = await Article.findOneAndUpdate(
-      query,
-      { $inc: { likesCount: incVal } },
-      { new: true }
-    ).select('-imageData').lean();
-
-    if (!article) {
+    const resLikes = await mysqlService.likeArticle(id, action);
+    if (!resLikes) {
       return res.status(404).json({ success: false, error: 'Article not found' });
     }
-
-    let finalLikes = article.likesCount !== undefined ? article.likesCount : 0;
-    if (finalLikes < 0) {
-      await Article.updateOne({ _id: article._id }, { $set: { likesCount: 0 } });
-      finalLikes = 0;
-    }
-
     return res.status(200).json({
       success: true,
-      likesCount: finalLikes,
+      likesCount: resLikes.likesCount,
     });
   } catch (error) {
     console.error('Like error:', error);

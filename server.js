@@ -1,22 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
+const { initMySQLTables } = require('./config/mysql');
 
 dotenv.config();
 
-const isMySQL = process.env.DB_TYPE === 'mysql';
+// Always initialize MySQL database & schema
+initMySQLTables()
+  .then(() => console.log('✅ MySQL Database and Tables initialized successfully'))
+  .catch((err) => console.error('❌ MySQL initialization warning:', err.message));
 
-if (isMySQL) {
-  const { initMySQLTables } = require('./config/mysql');
-  initMySQLTables()
-    .then(() => console.log('MySQL Database and Tables initialized successfully'))
-    .catch((err) => console.error('MySQL initialization warning:', err.message));
-} else {
-  const connectDB = require('./config/db');
-  connectDB();
-}
-
-const path = require('path');
 const app = express();
 
 app.use(cors());
@@ -34,6 +28,7 @@ app.get('/', (req, res) => {
     return res.status(200).json({
       status: 'online',
       service: 'Kerala Desam Backend & Admin API',
+      database: 'mysql',
       version: '1.0.0',
       endpoints: {
         admin: 'https://kerala-dhesam.vercel.app/admin',
@@ -48,33 +43,10 @@ app.get('/', (req, res) => {
   res.redirect(302, 'https://kerala-dhesam.vercel.app/admin');
 });
 
-// Ensure MongoDB connection for serverless invocations if not using MySQL
-app.use(async (req, res, next) => {
-  if (!isMySQL && req.path.startsWith('/api')) {
-    try {
-      const connectDB = require('./config/db');
-      await connectDB();
-    } catch (e) {
-      console.error('Database connection error in request:', e.message);
-    }
-  }
-  next();
-});
-
 app.get('/api/health', (req, res) => {
-  if (isMySQL) {
-    return res.json({
-      status: 'ok',
-      database: 'mysql',
-      service: 'Kerala Desam API',
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  const mongoose = require('mongoose');
-  res.json({
-    status: mongoose.connection.readyState === 1 ? 'ok' : 'connecting',
-    database: 'mongodb',
+  return res.json({
+    status: 'ok',
+    database: 'mysql',
     service: 'Kerala Desam API',
     timestamp: new Date().toISOString(),
   });
@@ -109,9 +81,8 @@ app.use((err, req, res, next) => {
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`Kerala Desam server running on port ${PORT}`);
+    console.log(`Kerala Desam server running on port ${PORT} with MySQL`);
   });
 }
 
 module.exports = app;
-

@@ -182,7 +182,7 @@
             <label class="block text-xs font-semibold text-slate-700 mb-1">പദവി (Role)</label>
             <select id="regRole" class="w-full bg-slate-50 border border-slate-300 rounded-lg py-2 px-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-brand-crimson">
               <option value="editor">എഡിറ്റർ / റിപ്പോർട്ടർ (Editor)</option>
-              <option value="admin">ചീഫ് അഡ്മിൻ (Chief Admin)</option>
+              <option value="admin">അഡ്മിൻ (Admin)</option>
             </select>
           </div>
 
@@ -226,8 +226,8 @@
             A
           </div>
           <div class="text-left hidden md:block">
-            <div id="userNameDisplay" class="text-xs font-bold text-slate-900 leading-tight">Chief Editor</div>
-            <div id="userRoleDisplay" class="text-[10px] text-emerald-600 font-medium">ചീഫ് അഡ്മിൻ</div>
+            <div id="userNameDisplay" class="text-xs font-bold text-slate-900 leading-tight">Editor</div>
+            <div id="userRoleDisplay" class="text-[10px] text-emerald-600 font-medium">അഡ്മിൻ</div>
           </div>
         </div>
 
@@ -241,7 +241,7 @@
     <!-- Main Content Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
-      <!-- Metrics KPI Cards (CLEAN WHITE THEME, NO MONGODB STATUS CARD) -->
+      <!-- Metrics KPI Cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- 1: Published Articles -->
         <div class="panel-card rounded-xl p-4 flex items-center justify-between">
@@ -276,7 +276,7 @@
           </div>
         </div>
 
-        <!-- 4: User Editorial Role Status (Replacing MongoDB connect status) -->
+        <!-- 4: User Editorial Role Status -->
         <div class="panel-card rounded-xl p-4 flex items-center justify-between">
           <div>
             <span class="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">നിങ്ങളുടെ പദവി</span>
@@ -881,8 +881,8 @@
     function showAdminApp(user) {
       document.getElementById('authSection').classList.add('hidden');
       document.getElementById('adminApp').classList.remove('hidden');
-      document.getElementById('userNameDisplay').textContent = user.name || 'Chief Editor';
-      const roleText = user.role === 'admin' ? 'ചീഫ് അഡ്മിൻ' : 'സ്റ്റാഫ് എഡിറ്റർ';
+      document.getElementById('userNameDisplay').textContent = user.name || 'Editor';
+      const roleText = user.role === 'admin' ? 'അഡ്മിൻ' : 'സ്റ്റാഫ് എഡിറ്റർ';
       document.getElementById('userRoleDisplay').textContent = roleText;
       const roleCard = document.getElementById('statUserRoleCard');
       if (roleCard) {
