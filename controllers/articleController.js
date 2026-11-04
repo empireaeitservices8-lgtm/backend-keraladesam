@@ -1,4 +1,5 @@
 const mysqlService = require('../services/mysqlService');
+const cloudflareService = require('../services/cloudflareService');
 
 exports.getArticles = async (req, res) => {
   try {
@@ -142,10 +143,15 @@ exports.createArticle = async (req, res) => {
       customId = cleanEnglish ? `${cleanEnglish.slice(0, 35)}-${uniqueSuffix}` : `news-${uniqueSuffix}`;
     }
 
-    // Image is completely optional - no forced placeholders
+    // Image is completely optional - supports Cloudflare R2 / CDN and data URLs
     let imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
     if (!imageUrl && req.file) {
-      imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      try {
+        const uploadResult = await cloudflareService.uploadMedia(req.file.buffer, req.file.originalname, req.file.mimetype);
+        imageUrl = uploadResult.url;
+      } catch {
+        imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
     }
 
     const isHeadline = Boolean(body.isHeadline === true || body.isHeadline === 'true');
@@ -221,8 +227,13 @@ exports.updateArticle = async (req, res) => {
     if (body.highlights) {
       body.highlights = parseStringArray(body.highlights, '\n');
     }
-    if (!body.imageUrl && req.file) {
-      body.imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    if (req.file) {
+      try {
+        const uploadResult = await cloudflareService.uploadMedia(req.file.buffer, req.file.originalname, req.file.mimetype);
+        body.imageUrl = uploadResult.url;
+      } catch {
+        body.imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
     }
 
     const updateData = { ...body };
