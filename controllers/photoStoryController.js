@@ -9,14 +9,13 @@ exports.getPhotoStory = async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
     return res.status(200).json({
       success: true,
-      photoStory,
+      photoStory: photoStory || null,
     });
   } catch (error) {
-    console.error('Get photo story error handler:', error);
-    res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
-    return res.status(200).json({
-      success: true,
-      photoStory: await mysqlService.getPhotoStory(),
+    console.error('Get photo story error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch photo story',
     });
   }
 };
@@ -28,7 +27,7 @@ exports.updatePhotoStory = async (req, res) => {
   try {
     const { tagLabel, subtitle, title, description, images } = req.body || {};
 
-    const titleVal = (title && title.trim()) ? title.trim() : 'കേരളദേശം ഫോട്ടോ സ്റ്റോറി';
+    const titleVal = title && title.trim() ? title.trim() : 'കേരളദേശം ഫോട്ടോ സ്റ്റോറി';
 
     const storyData = {
       tagLabel: tagLabel || 'PHOTO STORY',
@@ -47,10 +46,9 @@ exports.updatePhotoStory = async (req, res) => {
     });
   } catch (error) {
     console.error('Update photo story error:', error);
-    return res.status(200).json({
-      success: true,
-      message: 'Photo Story saved in active session',
-      photoStory: req.body,
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update photo story',
     });
   }
 };

@@ -28,24 +28,23 @@ exports.protect = async (req, res, next) => {
 
   try {
     let decoded = null;
+    let verifyError = null;
+
     for (const secret of JWT_SECRETS) {
       try {
         decoded = jwt.verify(token, secret);
         if (decoded) break;
-      } catch {}
-    }
-
-    // Gracefully accept decoded payload if token format is valid
-    if (!decoded) {
-      try {
-        decoded = jwt.decode(token);
-      } catch {}
+      } catch (err) {
+        verifyError = err;
+      }
     }
 
     if (!decoded) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid or expired token. Please login again.',
+        error: verifyError && verifyError.name === 'TokenExpiredError'
+          ? 'Token has expired. Please login again.'
+          : 'Invalid or unauthorized token. Please login again.',
       });
     }
 
@@ -75,7 +74,7 @@ exports.protect = async (req, res, next) => {
       });
     }
 
-    // Ensure name never has Chief
+    // Ensure designation never has 'Chief'
     if (user.name) {
       user.name = user.name.replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ';
     }

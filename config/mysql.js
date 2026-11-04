@@ -1,6 +1,11 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 
+const sslConfig =
+  process.env.DB_SSL === 'true' || process.env.DB_SSL === '1'
+    ? { rejectUnauthorized: false }
+    : undefined;
+
 const dbConfig = {
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT) || 3306,
@@ -8,9 +13,13 @@ const dbConfig = {
   password: process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : '',
   database: process.env.DB_NAME || 'keraladesam_db',
   waitForConnections: true,
-  connectionLimit: 15,
+  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT) || 10,
   queueLimit: 0,
   charset: 'utf8mb4',
+  ssl: sslConfig,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  connectTimeout: 10000,
 };
 
 let pool = null;
@@ -28,18 +37,23 @@ async function query(sql, params = []) {
   return results;
 }
 
-async function initMySQLTables() {
+async function testConnection() {
   try {
-    // Ensure database exists
-    const adminConn = await mysql.createConnection({
-      host: dbConfig.host,
-      port: dbConfig.port,
-      user: dbConfig.user,
-      password: dbConfig.password,
-    });
-    await adminConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    await adminConn.end();
+    const p = getPool();
+    const [rows] = await p.query('SELECT 1 as connected');
+    return Boolean(rows && rows[0] && rows[0].connected === 1);
+  } catch (err) {
+    console.error('MySQL Test Connection Failed:', err.message);
+    return false;
+  }
+}
 
+let isInitialized = false;
+
+async function initMySQLTables() {
+  if (isInitialized) return true;
+
+  try {
     const p = getPool();
 
     // 1. Users Table
@@ -71,7 +85,7 @@ async function initMySQLTables() {
         paragraphs JSON,
         highlights JSON,
         author_name VARCHAR(150) DEFAULT 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
-        author_designation VARCHAR(150) DEFAULT 'ഡെസ്ക് റിപ്പോർട്ടർ',
+        author_designation VARCHAR(150) DEFAULT 'എഡിറ്റർ',
         author_location VARCHAR(100) DEFAULT 'കേരളം',
         author_avatar TEXT,
         author_verified BOOLEAN DEFAULT TRUE,
@@ -158,29 +172,12 @@ async function initMySQLTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Seed default photo story if none exists
-    const [existingStories] = await p.query('SELECT id FROM photo_stories LIMIT 1');
-    if (existingStories.length === 0) {
-      const defaultImages = JSON.stringify([
-        { url: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 1' },
-        { url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 2' },
-        { url: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=600&q=80', caption: 'കുട്ടനാട് 3' },
-      ]);
-      await p.query(
-        'INSERT INTO photo_stories (tag_label, subtitle, title, description, images) VALUES (?, ?, ?, ?, ?)',
-        [
-          'PHOTO STORY',
-          'KERALA IN FRAMES',
-          'കുട്ടനാടൻ കായൽ ജീവിതം: വേനൽമഴയുടെ വരവറിയിച്ച് ഓളങ്ങൾ',
-          "Visual captures of life, landscapes, and backwaters across God's Own Country.",
-          defaultImages,
-        ]
-      );
-    }
-
-    // Seed default admin user if not exists
-    const [existingAdmin] = await p.query('SELECT id FROM users WHERE email = ? OR email = ?', ['Admin@keraladesam.in', 'admin@keraladesam.in']);
-    if (existingAdmin.length === 0) {
+    // Seed default verified admin user if not exists
+    const [existingAdmin] = await p.query(
+      'SELECT id FROM users WHERE email = ? OR email = ? LIMIT 1',
+      ['Admin@keraladesam.in', 'admin@keraladesam.in']
+    );
+    if (!existingAdmin || existingAdmin.length === 0) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash('Admin12345', salt);
       await p.query(
@@ -193,9 +190,10 @@ async function initMySQLTables() {
           'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
         ]
       );
-      console.log('✅ Default admin account seeded in MySQL: Admin@keraladesam.in');
+      console.log('✅ Verified admin account seeded in MySQL: Admin@keraladesam.in');
     }
 
+    isInitialized = true;
     console.log(`✅ MySQL Tables Initialized Successfully in database: ${dbConfig.database}`);
     return true;
   } catch (err) {
@@ -207,6 +205,7 @@ async function initMySQLTables() {
 module.exports = {
   getPool,
   query,
+  testConnection,
   initMySQLTables,
   dbConfig,
 };
