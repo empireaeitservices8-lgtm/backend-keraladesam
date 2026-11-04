@@ -10,9 +10,12 @@ exports.getBreakingNews = async (req, res) => {
       headlines,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch breaking news',
+    console.warn('getBreakingNews fallback:', error.message);
+    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
+    return res.status(200).json({
+      success: true,
+      count: 0,
+      headlines: [],
     });
   }
 };

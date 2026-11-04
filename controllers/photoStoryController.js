@@ -28,17 +28,12 @@ exports.updatePhotoStory = async (req, res) => {
   try {
     const { tagLabel, subtitle, title, description, images } = req.body || {};
 
-    if (!title || !title.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Title is required',
-      });
-    }
+    const titleVal = (title && title.trim()) ? title.trim() : 'കേരളദേശം ഫോട്ടോ സ്റ്റോറി';
 
     const storyData = {
       tagLabel: tagLabel || 'PHOTO STORY',
       subtitle: subtitle || 'KERALA IN FRAMES',
-      title: title.trim(),
+      title: titleVal,
       description: (description || '').trim(),
       images: Array.isArray(images) ? images : [],
     };

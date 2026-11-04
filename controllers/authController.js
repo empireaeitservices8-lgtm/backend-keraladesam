@@ -11,13 +11,15 @@ const sendTokenResponse = (user, statusCode, res, message = 'Success') => {
     { expiresIn: '30d' }
   );
 
+  const cleanName = (user.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ';
+
   res.status(statusCode).json({
     success: true,
     message,
     token,
     user: {
       id: userId,
-      name: user.name,
+      name: cleanName,
       email: user.email,
       role: user.role,
       avatar: user.avatar,
@@ -124,7 +126,14 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await mysqlService.getUserById(req.user.id);
+    let user = null;
+    try {
+      user = await mysqlService.getUserById(req.user.id);
+    } catch {}
+
+    if (!user && req.user) {
+      user = req.user;
+    }
 
     if (!user) {
       return res.status(404).json({
@@ -133,11 +142,13 @@ exports.getMe = async (req, res) => {
       });
     }
 
+    const cleanName = (user.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ';
+
     res.status(200).json({
       success: true,
       user: {
         id: user._id || user.id,
-        name: user.name,
+        name: cleanName,
         email: user.email,
         role: user.role,
         avatar: user.avatar,

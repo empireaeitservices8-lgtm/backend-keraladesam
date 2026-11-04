@@ -897,12 +897,14 @@ async function updateAdInquiryStatus(id, status) {
     console.warn('MySQL updateAdInquiryStatus fallback:', err.message);
   }
 
-  const found = inMemoryAdInquiries.find((a) => String(a.id) === String(id));
+  const found = inMemoryAdInquiries.find(
+    (a) => String(a.id) === String(id) || String(a._id) === String(id)
+  );
   if (found) {
     found.status = status;
     return found;
   }
-  return { id, status };
+  return { id, _id: String(id), status };
 }
 
 async function deleteAdInquiry(id) {
@@ -911,7 +913,9 @@ async function deleteAdInquiry(id) {
   } catch (err) {
     console.warn('MySQL deleteAdInquiry fallback:', err.message);
   }
-  inMemoryAdInquiries = inMemoryAdInquiries.filter((a) => String(a.id) !== String(id));
+  inMemoryAdInquiries = inMemoryAdInquiries.filter(
+    (a) => String(a.id) !== String(id) && String(a._id) !== String(id)
+  );
   return true;
 }
 

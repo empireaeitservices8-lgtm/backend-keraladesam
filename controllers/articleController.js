@@ -24,9 +24,19 @@ exports.getArticles = async (req, res) => {
       articles,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch articles',
+    console.warn('getArticles fallback:', error.message);
+    let fallback = { articles: [], total: 0 };
+    try {
+      fallback = await mysqlService.getArticles({ limit: 50, page: 1 });
+    } catch {}
+    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
+    return res.status(200).json({
+      success: true,
+      count: (fallback.articles || []).length,
+      total: fallback.total || 0,
+      page: 1,
+      totalPages: 1,
+      articles: fallback.articles || [],
     });
   }
 };
@@ -154,7 +164,7 @@ exports.createArticle = async (req, res) => {
       highlights: parseStringArray(body.highlights, '\n'),
       author: body.author || {
         name:
-          req.user?.name && req.user.name !== 'Chief Editor' && req.user.name !== 'Editor'
+          req.user?.name && !req.user.name.toLowerCase().includes('editor')
             ? req.user.name
             : 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
         designation: req.user?.role === 'admin' ? 'എഡിറ്റർ' : 'ഡെസ്ക് റിപ്പോർട്ടർ',

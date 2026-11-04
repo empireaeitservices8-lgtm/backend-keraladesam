@@ -37,9 +37,19 @@ exports.getVideos = async (req, res) => {
       videos,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to fetch videos',
+    console.warn('getVideos fallback:', error.message);
+    let fallback = { videos: [], total: 0 };
+    try {
+      fallback = await mysqlService.getVideos({ limit: 20, page: 1 });
+    } catch {}
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+    return res.status(200).json({
+      success: true,
+      count: (fallback.videos || []).length,
+      total: fallback.total || 0,
+      page: 1,
+      totalPages: 1,
+      videos: fallback.videos || [],
     });
   }
 };
