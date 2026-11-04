@@ -7,3 +7,4 @@ router.get('/', getPhotoStory);
 router.put('/', protect, authorize('admin', 'editor'), updatePhotoStory);
 
 module.exports = router;
+
