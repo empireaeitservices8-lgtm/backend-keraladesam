@@ -2,7 +2,10 @@ const mysqlService = require('../services/mysqlService');
 
 exports.getBreakingNews = async (req, res) => {
   try {
-    const headlines = await mysqlService.getBreakingNews();
+    const { all } = req.query;
+    const headlines = (all === 'true' || all === true)
+      ? await mysqlService.getAllBreakingNews()
+      : await mysqlService.getBreakingNews();
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
     return res.status(200).json({
       success: true,

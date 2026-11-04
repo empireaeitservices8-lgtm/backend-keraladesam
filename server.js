@@ -2,9 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-const { initMySQLTables } = require('./config/mysql');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+const { initMySQLTables } = require('./config/mysql');
 
 // Always initialize MySQL database & schema
 initMySQLTables()

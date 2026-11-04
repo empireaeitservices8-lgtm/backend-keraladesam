@@ -179,21 +179,21 @@ async function initMySQLTables() {
     }
 
     // Seed default admin user if not exists
-    const [existingAdmin] = await p.query('SELECT id FROM users WHERE email = ?', ['admin@keraladesam.com']);
+    const [existingAdmin] = await p.query('SELECT id FROM users WHERE email = ? OR email = ?', ['Admin@keraladesam.in', 'admin@keraladesam.in']);
     if (existingAdmin.length === 0) {
       const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('admin12345', salt);
+      const hashedPassword = await bcrypt.hash('Admin12345', salt);
       await p.query(
         'INSERT INTO users (name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?)',
         [
           'എഡിറ്റർ',
-          'admin@keraladesam.com',
+          'Admin@keraladesam.in',
           hashedPassword,
           'admin',
           'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
         ]
       );
-      console.log('✅ Default admin account seeded in MySQL: admin@keraladesam.com');
+      console.log('✅ Default admin account seeded in MySQL: Admin@keraladesam.in');
     }
 
     console.log(`✅ MySQL Tables Initialized Successfully in database: ${dbConfig.database}`);

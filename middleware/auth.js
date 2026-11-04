@@ -63,7 +63,7 @@ exports.protect = async (req, res, next) => {
         _id: String(decoded.id || 1),
         id: String(decoded.id || 1),
         name: (decoded.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ',
-        email: decoded.email || 'admin@keraladesam.com',
+        email: decoded.email || 'Admin@keraladesam.in',
         role: decoded.role || 'admin',
       };
     }

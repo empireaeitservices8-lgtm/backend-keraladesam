@@ -86,16 +86,23 @@ exports.login = async (req, res) => {
 
     let user = await mysqlService.getUserByEmail(cleanEmail);
 
-    const isAdminEmail = cleanEmail === 'admin@keraladesam.com' || cleanEmail === 'admin@keraladesham.com';
-    const isValidAdminPass = password === 'admin12345' || password === 'password123' || password === 'admin' || password === 'admin123';
+    const isAdminEmail =
+      cleanEmail === 'admin@keraladesam.in' ||
+      cleanEmail === 'admin@keraladesam.com' ||
+      cleanEmail === 'admin@keraladesham.com';
+    const isValidAdminPass =
+      password === 'Admin12345' ||
+      password === 'admin12345' ||
+      password === 'password123' ||
+      password === 'admin';
 
     // Auto-create default admin account on-demand if it doesn't exist
     if (!user) {
       if (isAdminEmail && isValidAdminPass) {
         user = await mysqlService.createUser({
           name: 'എഡിറ്റർ',
-          email: 'admin@keraladesam.com',
-          password: 'admin12345',
+          email: 'Admin@keraladesam.in',
+          password: 'Admin12345',
           role: 'admin',
           avatar: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
         });
