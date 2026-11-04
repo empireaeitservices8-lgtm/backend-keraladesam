@@ -1,4 +1,5 @@
 const mysqlService = require('../services/mysqlService');
+const storageService = require('../services/storageService');
 
 // @desc    Get photo story
 // @route   GET /api/photo-story
@@ -29,12 +30,43 @@ exports.updatePhotoStory = async (req, res) => {
 
     const titleVal = title && title.trim() ? title.trim() : 'കേരളദേശം ഫോട്ടോ സ്റ്റോറി';
 
+    let processedImages = [];
+    if (Array.isArray(images)) {
+      for (let i = 0; i < images.length; i++) {
+        const item = images[i];
+        if (!item) continue;
+        let url = typeof item.url === 'string' ? item.url.trim() : '';
+        const caption = typeof item.caption === 'string' ? item.caption.trim() : '';
+
+        // If the image is a base64 string, upload it to storageService
+        if (url.startsWith('data:')) {
+          try {
+            const uploadRes = await storageService.uploadMedia(
+              url,
+              `story-${i}-${Date.now()}.jpg`,
+              'image/jpeg',
+              'keraladesam/photo-stories'
+            );
+            if (uploadRes && uploadRes.url) {
+              url = uploadRes.url;
+            }
+          } catch (uploadErr) {
+            console.warn('Photo story image upload warning:', uploadErr.message);
+          }
+        }
+
+        if (url) {
+          processedImages.push({ url, caption });
+        }
+      }
+    }
+
     const storyData = {
       tagLabel: tagLabel || 'PHOTO STORY',
       subtitle: subtitle || 'KERALA IN FRAMES',
       title: titleVal,
       description: (description || '').trim(),
-      images: Array.isArray(images) ? images : [],
+      images: processedImages,
     };
 
     const updated = await mysqlService.updatePhotoStory(storyData);
@@ -49,6 +81,25 @@ exports.updatePhotoStory = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: error.message || 'Failed to update photo story',
+    });
+  }
+};
+
+// @desc    Delete photo story
+// @route   DELETE /api/photo-story
+// @access  Private/Admin
+exports.deletePhotoStory = async (req, res) => {
+  try {
+    await mysqlService.deletePhotoStory();
+    return res.status(200).json({
+      success: true,
+      message: 'Photo Story deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete photo story error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete photo story',
     });
   }
 };

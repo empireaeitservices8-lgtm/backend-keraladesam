@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { getPhotoStory, updatePhotoStory } = require('../controllers/photoStoryController');
+const { getPhotoStory, updatePhotoStory, deletePhotoStory } = require('../controllers/photoStoryController');
 
 // Lenient authentication: attach user if valid token is present, but never reject with 401
 const lenientAuth = (req, res, next) => {
@@ -42,6 +42,7 @@ const lenientAuth = (req, res, next) => {
 
 router.get('/', getPhotoStory);
 router.put('/', lenientAuth, updatePhotoStory);
+router.delete('/', lenientAuth, deletePhotoStory);
 
 module.exports = router;
 

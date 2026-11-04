@@ -19,7 +19,7 @@ const dbConfig = {
   ssl: sslConfig,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 10000,
+  connectTimeout: 3000,
 };
 
 let pool = null;
@@ -52,6 +52,17 @@ let isInitialized = false;
 
 async function initMySQLTables() {
   if (isInitialized) return true;
+
+  // On Vercel serverless, do not attempt blocking connection to local machine (127.0.0.1)
+  if (
+    process.env.VERCEL &&
+    (!process.env.DB_HOST ||
+      process.env.DB_HOST === '127.0.0.1' ||
+      process.env.DB_HOST === 'localhost')
+  ) {
+    console.log('ℹ️ Vercel serverless detected without external DB_HOST. Skipping local MySQL table creation.');
+    return false;
+  }
 
   try {
     const p = getPool();

@@ -143,14 +143,21 @@ exports.createArticle = async (req, res) => {
       customId = cleanEnglish ? `${cleanEnglish.slice(0, 35)}-${uniqueSuffix}` : `news-${uniqueSuffix}`;
     }
 
-    // Image is completely optional - supports Cloudflare R2 / CDN and data URLs
+    // Image handling: prioritize file upload -> base64 data upload -> external URL
     let imageUrl = typeof body.imageUrl === 'string' ? body.imageUrl.trim() : '';
-    if (!imageUrl && req.file) {
+    if (req.file) {
       try {
         const uploadResult = await cloudflareService.uploadMedia(req.file.buffer, req.file.originalname, req.file.mimetype);
         imageUrl = uploadResult.url;
       } catch {
         imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
+    } else if (imageUrl.startsWith('data:')) {
+      try {
+        const uploadResult = await cloudflareService.uploadMedia(imageUrl, `article-${Date.now()}.jpg`, 'image/jpeg');
+        imageUrl = uploadResult.url;
+      } catch (err) {
+        console.warn('Base64 image upload warning:', err.message);
       }
     }
 
@@ -233,6 +240,13 @@ exports.updateArticle = async (req, res) => {
         body.imageUrl = uploadResult.url;
       } catch {
         body.imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
+    } else if (body.imageUrl && typeof body.imageUrl === 'string' && body.imageUrl.startsWith('data:')) {
+      try {
+        const uploadResult = await cloudflareService.uploadMedia(body.imageUrl, `article-${Date.now()}.jpg`, 'image/jpeg');
+        body.imageUrl = uploadResult.url;
+      } catch (err) {
+        console.warn('Base64 image upload warning:', err.message);
       }
     }
 

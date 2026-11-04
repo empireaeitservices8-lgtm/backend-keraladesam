@@ -100,12 +100,19 @@ exports.createVideo = async (req, res) => {
 
     // Thumbnail resolution: Cloudflare R2 / CDN -> file upload base64 -> body URL -> YouTube auto thumbnail -> fallback
     let thumbnail = typeof body.thumbnail === 'string' ? body.thumbnail.trim() : '';
-    if (!thumbnail && req.file) {
+    if (req.file) {
       try {
         const uploadResult = await cloudflareService.uploadMedia(req.file.buffer, req.file.originalname, req.file.mimetype);
         thumbnail = uploadResult.url;
       } catch {
         thumbnail = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
+    } else if (thumbnail.startsWith('data:')) {
+      try {
+        const uploadResult = await cloudflareService.uploadMedia(thumbnail, `video-thumb-${Date.now()}.jpg`, 'image/jpeg');
+        thumbnail = uploadResult.url;
+      } catch (err) {
+        console.warn('Base64 video thumbnail upload warning:', err.message);
       }
     }
 

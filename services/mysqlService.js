@@ -634,6 +634,16 @@ async function updatePhotoStory({ tagLabel, subtitle, title, description, images
   return story;
 }
 
+async function deletePhotoStory() {
+  try {
+    await query('DELETE FROM photo_stories');
+    return true;
+  } catch (err) {
+    console.error('Delete photo story error:', err.message);
+    return false;
+  }
+}
+
 module.exports = {
   // Auth
   getUserByEmail,
@@ -671,4 +681,5 @@ module.exports = {
   // Photo Story
   getPhotoStory,
   updatePhotoStory,
+  deletePhotoStory,
 };

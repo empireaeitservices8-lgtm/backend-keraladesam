@@ -6,10 +6,19 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const { initMySQLTables } = require('./config/mysql');
 
-// Always initialize MySQL database & schema
-initMySQLTables()
-  .then(() => console.log('✅ MySQL Database and Tables initialized successfully'))
-  .catch((err) => console.error('❌ MySQL initialization warning:', err.message));
+// Always initialize MySQL database & schema safely (non-blocking for serverless)
+if (
+  !process.env.VERCEL ||
+  (process.env.DB_HOST &&
+    process.env.DB_HOST !== '127.0.0.1' &&
+    process.env.DB_HOST !== 'localhost')
+) {
+  initMySQLTables()
+    .then(() => console.log('✅ MySQL Database and Tables initialized successfully'))
+    .catch((err) => console.error('❌ MySQL initialization warning:', err.message));
+} else {
+  console.log('ℹ️ Running on Vercel without external DB_HOST configured; using resilient auth/content layer.');
+}
 
 const app = express();
 
@@ -25,32 +34,33 @@ const ALLOWED_ORIGIN_PATTERNS = [
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  if (origin) {
-    const isVercel = origin.endsWith('.vercel.app');
-    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-    const isExactMatch = ALLOWED_ORIGIN_PATTERNS.includes(origin);
-
-    if (isVercel || isLocalhost || isExactMatch) {
+  if (!res.getHeader('Access-Control-Allow-Origin')) {
+    if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
     } else {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Allow-Origin', '*');
     }
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
   }
 
-  res.setHeader(
-    'Access-Control-Allow-Methods',
-    'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD'
-  );
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-Requested-With, Accept, Origin, Range, X-CSRF-Token, X-Api-Version'
-  );
-  res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
-  res.setHeader('Access-Control-Max-Age', '86400');
+  if (!res.getHeader('Access-Control-Allow-Methods')) {
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD'
+    );
+  }
+  if (!res.getHeader('Access-Control-Allow-Headers')) {
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization, X-Requested-With, Accept, Origin, Range, X-CSRF-Token, X-Api-Version'
+    );
+  }
+  if (!res.getHeader('Access-Control-Expose-Headers')) {
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+  }
+  if (!res.getHeader('Access-Control-Max-Age')) {
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -107,6 +117,7 @@ app.use('/api/subscribers', require('./routes/subscriberRoutes'));
 app.use('/api/ads', require('./routes/adRoutes'));
 app.use('/api/photo-story', require('./routes/photoStoryRoutes'));
 app.use('/api/cloudflare', require('./routes/cloudflareRoutes'));
+app.use('/api/upload', require('./routes/cloudflareRoutes'));
 
 app.use((req, res) => {
   res.status(404).json({
