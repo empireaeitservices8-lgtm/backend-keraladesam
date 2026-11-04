@@ -24,9 +24,23 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = process.env.DB_TYPE === 'mysql'
-      ? await mysqlService.getUserById(decoded.id)
-      : await User.findById(decoded.id);
+    let user = null;
+
+    if (process.env.DB_TYPE === 'mysql') {
+      try {
+        user = await mysqlService.getUserById(decoded.id);
+      } catch (mysqlErr) {
+        console.warn('MySQL getUserById failed, falling back to MongoDB:', mysqlErr.message);
+      }
+    }
+
+    if (!user) {
+      try {
+        user = await User.findById(decoded.id);
+      } catch (mongoErr) {
+        console.warn('MongoDB User.findById failed:', mongoErr.message);
+      }
+    }
 
     if (!user) {
       return res.status(401).json({

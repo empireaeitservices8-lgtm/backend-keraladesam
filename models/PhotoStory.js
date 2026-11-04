@@ -32,3 +32,4 @@ const PhotoStorySchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.models.PhotoStory || mongoose.model('PhotoStory', PhotoStorySchema);
+

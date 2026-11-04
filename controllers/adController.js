@@ -16,21 +16,25 @@ exports.createAdInquiry = async (req, res) => {
     }
 
     if (process.env.DB_TYPE === 'mysql') {
-      const inquiry = await mysqlService.createAdInquiry({
-        name: name.trim(),
-        companyName: (companyName || '').trim(),
-        phone: phone.trim(),
-        email: (email || '').trim(),
-        adType: adType || 'Digital Banner',
-        budget: (budget || '').trim(),
-        message: (message || '').trim(),
-      });
+      try {
+        const inquiry = await mysqlService.createAdInquiry({
+          name: name.trim(),
+          companyName: (companyName || '').trim(),
+          phone: phone.trim(),
+          email: (email || '').trim(),
+          adType: adType || 'Digital Banner',
+          budget: (budget || '').trim(),
+          message: (message || '').trim(),
+        });
 
-      return res.status(201).json({
-        success: true,
-        message: 'പരസ്യ വിവരങ്ങൾ വിജയകരമായി അയച്ചു. ഞങ്ങളുടെ പ്രതിനിധി ഉടൻ ബന്ധപ്പെടും.',
-        inquiry,
-      });
+        return res.status(201).json({
+          success: true,
+          message: 'പരസ്യ വിവരങ്ങൾ വിജയകരമായി അയച്ചു. ഞങ്ങളുടെ പ്രതിനിധി ഉടൻ ബന്ധപ്പെടും.',
+          inquiry,
+        });
+      } catch (mysqlErr) {
+        console.warn('MySQL createAdInquiry failed, falling back to MongoDB:', mysqlErr.message);
+      }
     }
 
     const inquiry = await AdInquiry.create({
@@ -64,12 +68,16 @@ exports.createAdInquiry = async (req, res) => {
 exports.getAdInquiries = async (req, res) => {
   try {
     if (process.env.DB_TYPE === 'mysql') {
-      const inquiries = await mysqlService.getAdInquiries();
-      return res.status(200).json({
-        success: true,
-        count: inquiries.length,
-        inquiries,
-      });
+      try {
+        const inquiries = await mysqlService.getAdInquiries();
+        return res.status(200).json({
+          success: true,
+          count: inquiries.length,
+          inquiries,
+        });
+      } catch (mysqlErr) {
+        console.warn('MySQL getAdInquiries failed, falling back to MongoDB:', mysqlErr.message);
+      }
     }
 
     const inquiries = await AdInquiry.find().sort({ createdAt: -1 });
@@ -92,32 +100,51 @@ exports.getAdInquiries = async (req, res) => {
 // @access  Private/Admin
 exports.updateAdInquiryStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    const allowed = ['New', 'Contacted', 'Confirmed', 'Closed'];
-    if (!allowed.includes(status)) {
+    let { status } = req.body;
+    if (!status) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid status value',
+        error: 'Status value is required',
+      });
+    }
+
+    // Normalize incoming status variants (handle both frontend labels and database enums)
+    const statusMap = {
+      pending: 'New',
+      new: 'New',
+      contacted: 'Contacted',
+      confirmed: 'Confirmed',
+      resolved: 'Confirmed',
+      closed: 'Closed',
+    };
+
+    const normalizedStatus = statusMap[status.toString().toLowerCase()] || status;
+    const allowed = ['New', 'Contacted', 'Confirmed', 'Closed'];
+
+    if (!allowed.includes(normalizedStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status value. Allowed: ${allowed.join(', ')}`,
       });
     }
 
     if (process.env.DB_TYPE === 'mysql') {
-      const inquiry = await mysqlService.updateAdInquiryStatus(req.params.id, status);
-      if (!inquiry) {
-        return res.status(404).json({
-          success: false,
-          error: 'Ad inquiry not found',
-        });
+      try {
+        const inquiry = await mysqlService.updateAdInquiryStatus(req.params.id, normalizedStatus);
+        if (inquiry) {
+          return res.status(200).json({
+            success: true,
+            inquiry,
+          });
+        }
+      } catch (mysqlErr) {
+        console.warn('MySQL updateAdInquiryStatus failed, trying MongoDB fallback:', mysqlErr.message);
       }
-      return res.status(200).json({
-        success: true,
-        inquiry,
-      });
     }
 
     const inquiry = await AdInquiry.findByIdAndUpdate(
       req.params.id,
-      { status },
+      { status: normalizedStatus },
       { new: true, runValidators: true }
     );
 
@@ -147,17 +174,17 @@ exports.updateAdInquiryStatus = async (req, res) => {
 exports.deleteAdInquiry = async (req, res) => {
   try {
     if (process.env.DB_TYPE === 'mysql') {
-      const deleted = await mysqlService.deleteAdInquiry(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({
-          success: false,
-          error: 'Ad inquiry not found',
-        });
+      try {
+        const deleted = await mysqlService.deleteAdInquiry(req.params.id);
+        if (deleted) {
+          return res.status(200).json({
+            success: true,
+            message: 'Inquiry deleted successfully',
+          });
+        }
+      } catch (mysqlErr) {
+        console.warn('MySQL deleteAdInquiry failed, trying MongoDB fallback:', mysqlErr.message);
       }
-      return res.status(200).json({
-        success: true,
-        message: 'Inquiry deleted successfully',
-      });
     }
 
     const inquiry = await AdInquiry.findByIdAndDelete(req.params.id);
@@ -180,4 +207,3 @@ exports.deleteAdInquiry = async (req, res) => {
     });
   }
 };
-
