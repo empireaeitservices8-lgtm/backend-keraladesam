@@ -6,7 +6,11 @@
   <title>കേരളദേശം എഡിറ്റോറിയൽ കൺസോൾ | Kerala Desam Admin & Editor Panel</title>
   <script>
     if (window.location.hostname !== 'localhost') {
-      window.location.replace('https://kerala-dhesam.vercel.app/admin');
+      const isRender = window.location.hostname.includes('onrender.com');
+      const targetAdmin = isRender
+        ? 'https://kerala-dhesam.onrender.com/admin'
+        : 'https://kerala-dhesam.vercel.app/admin';
+      window.location.replace(targetAdmin);
     }
   </script>
   <link rel="icon" type="image/png" href="/favicon.png?v=3" />

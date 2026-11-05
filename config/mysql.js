@@ -53,14 +53,14 @@ let isInitialized = false;
 async function initMySQLTables() {
   if (isInitialized) return true;
 
-  // On Vercel serverless, do not attempt blocking connection to local machine (127.0.0.1)
+  // On Vercel / Render cloud hosting, do not attempt blocking connection to local machine (127.0.0.1)
   if (
-    process.env.VERCEL &&
+    (process.env.VERCEL || process.env.RENDER) &&
     (!process.env.DB_HOST ||
       process.env.DB_HOST === '127.0.0.1' ||
       process.env.DB_HOST === 'localhost')
   ) {
-    console.log('ℹ️ Vercel serverless detected without external DB_HOST. Skipping local MySQL table creation.');
+    console.log('ℹ️ Cloud environment detected without external DB_HOST. Skipping local MySQL table creation.');
     return false;
   }
 

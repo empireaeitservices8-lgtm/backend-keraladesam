@@ -6,18 +6,20 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const { initMySQLTables } = require('./config/mysql');
 
-// Always initialize MySQL database & schema safely (non-blocking for serverless)
-if (
-  !process.env.VERCEL ||
-  (process.env.DB_HOST &&
+const isCloudHosting = Boolean(process.env.VERCEL || process.env.RENDER);
+const hasExternalDb = Boolean(
+  process.env.DB_HOST &&
     process.env.DB_HOST !== '127.0.0.1' &&
-    process.env.DB_HOST !== 'localhost')
-) {
+    process.env.DB_HOST !== 'localhost'
+);
+
+// Always initialize MySQL database & schema safely (non-blocking for serverless/containers)
+if (!isCloudHosting || hasExternalDb) {
   initMySQLTables()
     .then(() => console.log('✅ MySQL Database and Tables initialized successfully'))
     .catch((err) => console.error('❌ MySQL initialization warning:', err.message));
 } else {
-  console.log('ℹ️ Running on Vercel without external DB_HOST configured; using resilient auth/content layer.');
+  console.log('ℹ️ Running in cloud environment without external DB_HOST configured; using resilient auth/content layer.');
 }
 
 const app = express();
@@ -25,10 +27,22 @@ const app = express();
 const ALLOWED_ORIGIN_PATTERNS = [
   'https://kerala-dhesam.vercel.app',
   'https://kerala-dhesam-admin.vercel.app',
+  'https://kerala-dhesam.onrender.com',
+  'https://kerala-dhesam-admin.onrender.com',
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5000',
 ];
+
+// Helper to determine active frontend base URL dynamically
+const getFrontendUrl = (req) => {
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL.replace(/\/$/, '');
+  const host = (req && req.headers && req.headers.host) || '';
+  if (host.includes('onrender.com')) {
+    return 'https://kerala-dhesam.onrender.com';
+  }
+  return 'https://kerala-dhesam.vercel.app';
+};
 
 // Comprehensive CORS & Preflight handler
 app.use((req, res, next) => {
@@ -72,9 +86,9 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Admin UI Web Application Route - redirects to modern Next.js Admin Portal
+// Admin UI Web Application Route - redirects to active Next.js Admin Portal
 app.get(['/admin', '/login'], (req, res) => {
-  res.redirect(302, 'https://kerala-dhesam.vercel.app/admin');
+  res.redirect(302, `${getFrontendUrl(req)}/admin`);
 });
 
 app.get('/', (req, res) => {
@@ -85,7 +99,7 @@ app.get('/', (req, res) => {
       database: 'mysql',
       version: '1.0.0',
       endpoints: {
-        admin: 'https://kerala-dhesam.vercel.app/admin',
+        admin: `${getFrontendUrl(req)}/admin`,
         health: '/api/health',
         articles: '/api/articles',
         breaking: '/api/breaking',
@@ -94,7 +108,7 @@ app.get('/', (req, res) => {
       }
     });
   }
-  res.redirect(302, 'https://kerala-dhesam.vercel.app/admin');
+  res.redirect(302, `${getFrontendUrl(req)}/admin`);
 });
 
 app.get('/api/health', (req, res) => {
