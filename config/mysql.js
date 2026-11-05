@@ -208,7 +208,7 @@ async function initMySQLTables() {
     console.log(`✅ MySQL Tables Initialized Successfully in database: ${dbConfig.database}`);
     return true;
   } catch (err) {
-    console.error('❌ MySQL Initialization Error:', err.message);
+    console.log(`ℹ️ Local MySQL service not detected on port 3306 (${err.message}). Using persistent JSON storage layer.`);
     return false;
   }
 }

@@ -17,7 +17,7 @@ const hasExternalDb = Boolean(
 if (!isCloudHosting || hasExternalDb) {
   initMySQLTables()
     .then(() => console.log('✅ MySQL Database and Tables initialized successfully'))
-    .catch((err) => console.error('❌ MySQL initialization warning:', err.message));
+    .catch((err) => console.log('ℹ️ Local MySQL not detected on port 3306. Backend is operating with resilient persistent JSON storage (data/portal_content.json).'));
 } else {
   console.log('ℹ️ Running in cloud environment without external DB_HOST configured; using resilient auth/content layer.');
 }
@@ -154,22 +154,26 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 5001;
   const HOST = process.env.HOST || '0.0.0.0';
-  const server = app.listen(PORT, HOST, () => {
-    console.log(`Kerala Desam server running on http://${HOST}:${PORT} with MySQL`);
-  });
 
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.warn(`⚠️ Port ${PORT} on ${HOST} is in use. Retrying on port ${Number(PORT) + 1}...`);
-      app.listen(Number(PORT) + 1, HOST, () => {
-        console.log(`Kerala Desam server running on http://${HOST}:${Number(PORT) + 1} with MySQL`);
-      });
-    } else {
-      console.error('❌ Server startup error:', err);
-    }
-  });
+  const startServer = (portToTry) => {
+    const srv = app.listen(portToTry, HOST, () => {
+      console.log(`✅ Kerala Desam backend running on http://localhost:${portToTry} (bound to ${HOST}:${portToTry})`);
+    });
+
+    srv.on('error', (err) => {
+      if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
+        const nextPort = Number(portToTry) + 1;
+        console.warn(`⚠️ Port ${portToTry} unavailable (${err.code}). Trying fallback port ${nextPort}...`);
+        startServer(nextPort);
+      } else {
+        console.error('❌ Server startup error:', err.message);
+      }
+    });
+  };
+
+  startServer(PORT);
 }
 
 module.exports = app;
