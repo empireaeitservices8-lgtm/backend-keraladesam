@@ -86,7 +86,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Admin UI Web Application Route - redirects to active Next.js Admin Portal
+// Admin UI Web Application Route - redirects to modern Next.js Admin Portal
 app.get(['/admin', '/login'], (req, res) => {
   res.redirect(302, `${getFrontendUrl(req)}/admin`);
 });

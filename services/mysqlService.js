@@ -612,7 +612,7 @@ async function createBreakingNews(headline) {
 }
 
 async function updateBreakingNews(id, { headline, active }) {
-  const idx = memoryBreaking.findIndex((b) => String(b.id) === String(id));
+  const idx = memoryBreaking.findIndex((b) => String(b.id) === String(id) || String(b._id) === String(id));
   if (idx !== -1) {
     if (headline !== undefined) memoryBreaking[idx].headline = headline.trim();
     if (active !== undefined) memoryBreaking[idx].active = Boolean(active);
@@ -642,7 +642,7 @@ async function updateBreakingNews(id, { headline, active }) {
 }
 
 async function deleteBreakingNews(id) {
-  memoryBreaking = memoryBreaking.filter((b) => String(b.id) !== String(id));
+  memoryBreaking = memoryBreaking.filter((b) => String(b.id) !== String(id) && String(b._id) !== String(id));
   try {
     const result = await query('DELETE FROM breaking_news WHERE id = ?', [id]);
     return result && result.affectedRows > 0;
