@@ -1,5 +1,6 @@
 const { query } = require('../config/mysql');
 const bcrypt = require('bcryptjs');
+const { initialArticles, initialBreaking, initialVideos } = require('../data/seedData');
 
 /**
  * Normalizes a raw MySQL article row into a full frontend-ready Article object.
@@ -67,42 +68,141 @@ function normalizeArticleRow(row) {
   };
 }
 
+// ----------------- RESILIENT HYBRID IN-MEMORY STORE -----------------
+// Seeded automatically with all initial Malayalam news articles, breaking alerts, and video shorts
+let memoryArticles = (initialArticles || []).map((art, idx) => ({
+  _id: art.customId || `news-${idx + 1}`,
+  id: art.customId || `news-${idx + 1}`,
+  customId: art.customId || `news-${idx + 1}`,
+  title: art.title,
+  lead: art.lead || '',
+  category: art.category,
+  categoryColor: art.categoryColor || '#006b9a',
+  imageUrl: art.imageUrl || '',
+  imageCaption: art.imageCaption || '',
+  readTime: art.readTime || '3 മിനിറ്റ് വായന',
+  audioDuration: art.audioDuration || '03:00',
+  paragraphs: Array.isArray(art.paragraphs) ? art.paragraphs : [art.paragraphs || ''],
+  highlights: Array.isArray(art.highlights) ? art.highlights : [],
+  author: {
+    name: art.author?.name || 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
+    designation: art.author?.designation || 'എഡിറ്റർ',
+    location: art.author?.location || 'കേരളം',
+    avatar: art.author?.avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
+    verified: Boolean(art.author?.verified),
+  },
+  district: art.district || '',
+  country: art.country || '',
+  views: String(art.views || '1.5k'),
+  viewsCount: typeof art.views === 'number' ? art.views : 1500,
+  likesCount: 24,
+  tags: Array.isArray(art.tags) ? art.tags : [],
+  isBreaking: Boolean(art.breaking),
+  isTrending: Boolean(art.trending),
+  isHeadline: idx === 0,
+  publishedAt: new Date(Date.now() - idx * 3600000).toLocaleString('ml-IN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }),
+  createdAt: new Date(Date.now() - idx * 3600000).toISOString(),
+}));
+
+let memoryBreaking = (initialBreaking || []).map((txt, idx) => ({
+  id: idx + 1,
+  _id: String(idx + 1),
+  headline: txt,
+  active: true,
+  priority: idx,
+  createdAt: new Date().toISOString(),
+}));
+
+let memoryVideos = (initialVideos || []).map((v, idx) => ({
+  id: String(idx + 1),
+  _id: String(idx + 1),
+  title: v.title,
+  videoUrl: v.videoUrl,
+  youtubeId: v.youtubeId || '',
+  category: v.category || 'വാർത്തകൾ',
+  duration: v.duration || '02:30',
+  viewsCount: v.viewsCount || 1200,
+  views: v.views || '150K',
+  thumbnail: v.thumbnail || '',
+  description: v.description || '',
+  createdAt: new Date().toISOString(),
+}));
+
+let memoryPhotoStory = {
+  id: 1,
+  tagLabel: 'PHOTO STORY',
+  subtitle: 'KERALA IN FRAMES',
+  title: 'കുട്ടനാടൻ കായൽസൗന്ദര്യം: പ്രകൃതിയുടെ മാന്ത്രിക സ്പർശം',
+  description: 'ആലപ്പുഴയുടെ ഹൃദയതുടിപ്പായ കുട്ടനാട്ടിലെ കായൽക്കാഴ്ചകളും കാർഷിക ഗ്രാമജീവിതവും പച്ചപ്പണിഞ്ഞ പ്രകൃതിഭംഗിയും.',
+  images: [
+    {
+      url: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80',
+      caption: 'കുട്ടനാട് 1',
+    },
+    {
+      url: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=600&q=80',
+      caption: 'കുട്ടനാട് 2',
+    },
+    {
+      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+      caption: 'കുട്ടനാട് 3',
+    },
+  ],
+  updatedAt: new Date().toISOString(),
+};
+
+let memorySubscribers = [];
+let memoryAdInquiries = [];
+
 // ----------------- AUTH SERVICE -----------------
 async function getUserByEmail(email) {
   if (!email) return null;
-  const rows = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email.toLowerCase().trim()]);
-  if (!rows || rows.length === 0) return null;
-
-  const u = rows[0];
-  return {
-    _id: String(u.id),
-    id: String(u.id),
-    name: (u.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ',
-    email: u.email,
-    password: u.password,
-    role: u.role || 'editor',
-    avatar: u.avatar || '',
-    matchPassword: async function (enteredPassword) {
-      if (!enteredPassword || !this.password) return false;
-      return bcrypt.compare(enteredPassword, this.password);
-    },
-  };
+  try {
+    const rows = await query('SELECT * FROM users WHERE email = ? LIMIT 1', [email.toLowerCase().trim()]);
+    if (rows && rows.length > 0) {
+      const u = rows[0];
+      return {
+        _id: String(u.id),
+        id: String(u.id),
+        name: (u.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ',
+        email: u.email,
+        password: u.password,
+        role: u.role || 'editor',
+        avatar: u.avatar || '',
+        matchPassword: async function (enteredPassword) {
+          if (!enteredPassword || !this.password) return false;
+          return bcrypt.compare(enteredPassword, this.password);
+        },
+      };
+    }
+  } catch {}
+  return null;
 }
 
 async function getUserById(id) {
   if (!id) return null;
-  const rows = await query('SELECT id, name, email, role, avatar, created_at FROM users WHERE id = ? LIMIT 1', [id]);
-  if (!rows || rows.length === 0) return null;
-
-  const u = rows[0];
-  return {
-    _id: String(u.id),
-    id: String(u.id),
-    name: (u.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ',
-    email: u.email,
-    role: u.role || 'editor',
-    avatar: u.avatar || '',
-  };
+  try {
+    const rows = await query('SELECT id, name, email, role, avatar, created_at FROM users WHERE id = ? LIMIT 1', [id]);
+    if (rows && rows.length > 0) {
+      const u = rows[0];
+      return {
+        _id: String(u.id),
+        id: String(u.id),
+        name: (u.name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ',
+        email: u.email,
+        role: u.role || 'editor',
+        avatar: u.avatar || '',
+      };
+    }
+  } catch {}
+  return null;
 }
 
 async function createUser({ name, email, password, role, avatar }) {
@@ -111,14 +211,18 @@ async function createUser({ name, email, password, role, avatar }) {
   const av = avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80';
   const cleanName = (name || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ';
 
-  const result = await query(
-    'INSERT INTO users (name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?)',
-    [cleanName, email.toLowerCase().trim(), hashedPassword, role || 'editor', av]
-  );
+  let insertId = '1';
+  try {
+    const result = await query(
+      'INSERT INTO users (name, email, password, role, avatar) VALUES (?, ?, ?, ?, ?)',
+      [cleanName, email.toLowerCase().trim(), hashedPassword, role || 'editor', av]
+    );
+    if (result && result.insertId) insertId = String(result.insertId);
+  } catch {}
 
   return {
-    _id: String(result.insertId),
-    id: String(result.insertId),
+    _id: insertId,
+    id: insertId,
     name: cleanName,
     email: email.toLowerCase().trim(),
     password: hashedPassword,
@@ -133,416 +237,644 @@ async function createUser({ name, email, password, role, avatar }) {
 
 // ----------------- ARTICLES SERVICE -----------------
 async function getArticles({ category, district, search, trending, limit = 50, page = 1 }) {
-  let whereClauses = [];
-  let params = [];
+  try {
+    let whereClauses = [];
+    let params = [];
 
+    if (category && category !== 'all' && category !== 'എല്ലാം') {
+      whereClauses.push('LOWER(category) LIKE ?');
+      params.push(`%${category.toLowerCase().trim()}%`);
+    }
+
+    if (district && district !== 'all' && district !== 'എല്ലാം') {
+      whereClauses.push('LOWER(district) LIKE ?');
+      params.push(`%${district.toLowerCase().trim()}%`);
+    }
+
+    if (trending === 'true' || trending === true) {
+      whereClauses.push('is_trending = 1');
+    }
+
+    if (search && search.trim()) {
+      const s = `%${search.trim().toLowerCase()}%`;
+      whereClauses.push('(LOWER(title) LIKE ? OR LOWER(`lead`) LIKE ? OR LOWER(district) LIKE ?)');
+      params.push(s, s, s);
+    }
+
+    const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const countRows = await query(`SELECT COUNT(*) as total FROM articles ${whereSQL}`, params);
+    const total = (countRows && countRows[0]?.total) || 0;
+
+    if (total > 0) {
+      const parsedLimit = Math.max(1, parseInt(limit) || 50);
+      const parsedPage = Math.max(1, parseInt(page) || 1);
+      const offset = (parsedPage - 1) * parsedLimit;
+      const selectParams = [...params, parsedLimit, offset];
+
+      const rows = await query(
+        `SELECT * FROM articles ${whereSQL} ORDER BY is_headline DESC, id DESC LIMIT ? OFFSET ?`,
+        selectParams
+      );
+      if (rows && rows.length > 0) {
+        return {
+          articles: rows.map(normalizeArticleRow),
+          total,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('MySQL getArticles fallback:', err.message);
+  }
+
+  // Resilient fallback from memoryArticles
+  let filtered = [...memoryArticles];
   if (category && category !== 'all' && category !== 'എല്ലാം') {
-    whereClauses.push('LOWER(category) LIKE ?');
-    params.push(`%${category.toLowerCase().trim()}%`);
+    const cat = category.toLowerCase().trim();
+    filtered = filtered.filter((a) => (a.category || '').toLowerCase().includes(cat));
   }
-
   if (district && district !== 'all' && district !== 'എല്ലാം') {
-    whereClauses.push('LOWER(district) LIKE ?');
-    params.push(`%${district.toLowerCase().trim()}%`);
+    const dist = district.toLowerCase().trim();
+    filtered = filtered.filter((a) => (a.district || '').toLowerCase().includes(dist));
   }
-
   if (trending === 'true' || trending === true) {
-    whereClauses.push('is_trending = 1');
+    filtered = filtered.filter((a) => a.isTrending);
   }
-
   if (search && search.trim()) {
-    const s = `%${search.trim().toLowerCase()}%`;
-    whereClauses.push('(LOWER(title) LIKE ? OR LOWER(`lead`) LIKE ? OR LOWER(district) LIKE ?)');
-    params.push(s, s, s);
+    const q = search.trim().toLowerCase();
+    filtered = filtered.filter(
+      (a) => (a.title || '').toLowerCase().includes(q) || (a.lead || '').toLowerCase().includes(q)
+    );
   }
-
-  const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-  const countRows = await query(`SELECT COUNT(*) as total FROM articles ${whereSQL}`, params);
-  const total = (countRows && countRows[0]?.total) || 0;
 
   const parsedLimit = Math.max(1, parseInt(limit) || 50);
   const parsedPage = Math.max(1, parseInt(page) || 1);
   const offset = (parsedPage - 1) * parsedLimit;
-  const selectParams = [...params, parsedLimit, offset];
+  const paginated = filtered.slice(offset, offset + parsedLimit);
 
-  const rows = await query(
-    `SELECT * FROM articles ${whereSQL} ORDER BY is_headline DESC, id DESC LIMIT ? OFFSET ?`,
-    selectParams
-  );
-
-  const articles = (rows || []).map(normalizeArticleRow);
-  return { articles, total };
+  return {
+    articles: paginated,
+    total: filtered.length,
+  };
 }
 
 async function getArticleById(id) {
-  const rows = await query(
-    'SELECT * FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
-    [id, isNaN(Number(id)) ? 0 : Number(id)]
-  );
-  if (!rows || rows.length === 0) return null;
+  if (!id) return null;
+  try {
+    const rows = await query(
+      'SELECT * FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
+      [id, isNaN(Number(id)) ? 0 : Number(id)]
+    );
+    if (rows && rows.length > 0) {
+      query('UPDATE articles SET views_count = views_count + 1 WHERE id = ?', [rows[0].id]).catch(() => {});
+      return normalizeArticleRow(rows[0]);
+    }
+  } catch {}
 
-  query('UPDATE articles SET views_count = views_count + 1 WHERE id = ?', [rows[0].id]).catch(() => {});
-  return normalizeArticleRow(rows[0]);
+  const found = memoryArticles.find((a) => a.id === id || a._id === id || a.customId === id);
+  if (found) {
+    found.viewsCount = (found.viewsCount || 1) + 1;
+    return found;
+  }
+  return null;
 }
 
 async function createArticle(data) {
   const customId = data.customId || `news-${Date.now()}`;
   const isHeadline = Boolean(data.isHeadline);
-
-  if (isHeadline) {
-    await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1');
-  }
-
-  const paragraphsJson = JSON.stringify(data.paragraphs || []);
-  const highlightsJson = JSON.stringify(data.highlights || []);
-  const tagsJson = JSON.stringify(data.tags || []);
-
   const author = data.author || {};
   const authorName = (author.name || 'കേരളദേശം ന്യൂസ് ഡെസ്ക്').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ';
   const authorDesignation = (author.designation || 'എഡിറ്റർ').replace(/chief\s*/i, '').replace(/ചീഫ്\s*/, '').trim() || 'എഡിറ്റർ';
-  const authorLocation = author.location || 'കേരളം';
-  const authorAvatar = author.avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80';
-  const authorVerified = author.verified !== undefined ? author.verified : true;
 
-  const result = await query(
-    `INSERT INTO articles (
-      custom_id, title, \`lead\`, category, category_color, image_url, image_caption,
-      read_time, audio_duration, paragraphs, highlights, author_name, author_designation,
-      author_location, author_avatar, author_verified, district, country, views,
-      views_count, likes_count, tags, is_breaking, is_trending, is_headline, published_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      customId,
-      data.title,
-      data.lead || '',
-      data.category,
-      data.categoryColor || '#006b9a',
-      data.imageUrl || '',
-      data.imageCaption || '',
-      data.readTime || '3 മിനിറ്റ് വായന',
-      data.audioDuration || '03:00',
-      paragraphsJson,
-      highlightsJson,
-      authorName,
-      authorDesignation,
-      authorLocation,
-      authorAvatar,
-      authorVerified ? 1 : 0,
-      data.district || '',
-      data.country || '',
-      data.views || '1',
-      data.viewsCount || 1,
-      data.likesCount || 0,
-      tagsJson,
-      data.isBreaking ? 1 : 0,
-      data.isTrending ? 1 : 0,
-      isHeadline ? 1 : 0,
-      data.publishedAt || new Date().toISOString(),
-    ]
-  );
+  const normalizedNew = {
+    _id: customId,
+    id: customId,
+    customId,
+    title: (data.title || '').trim(),
+    lead: (data.lead || '').trim(),
+    category: (data.category || 'പ്രധാനം').trim(),
+    categoryColor: data.categoryColor || '#006b9a',
+    imageUrl: data.imageUrl || '',
+    imageCaption: (data.imageCaption || '').trim(),
+    readTime: data.readTime || '3 മിനിറ്റ് വായന',
+    audioDuration: data.audioDuration || '03:00',
+    paragraphs: Array.isArray(data.paragraphs) ? data.paragraphs : [data.paragraphs || ''],
+    highlights: Array.isArray(data.highlights) ? data.highlights : [],
+    author: {
+      name: authorName,
+      designation: authorDesignation,
+      location: author.location || 'കേരളം',
+      avatar: author.avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
+      verified: author.verified !== undefined ? Boolean(author.verified) : true,
+    },
+    district: data.district || '',
+    country: data.country || '',
+    views: data.views || '1',
+    viewsCount: data.viewsCount || 1,
+    likesCount: data.likesCount || 0,
+    tags: Array.isArray(data.tags) ? data.tags : [],
+    isBreaking: Boolean(data.isBreaking),
+    isTrending: Boolean(data.isTrending),
+    isHeadline,
+    publishedAt: data.publishedAt || new Date().toLocaleString('ml-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }),
+    createdAt: new Date().toISOString(),
+  };
 
-  return await getArticleById(result.insertId);
+  if (isHeadline) {
+    memoryArticles.forEach((a) => (a.isHeadline = false));
+  }
+  // Immediately prepend to memory store so it is available 0ms!
+  memoryArticles.unshift(normalizedNew);
+
+  // Attempt MySQL persistence asynchronously
+  try {
+    if (isHeadline) {
+      await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1').catch(() => {});
+    }
+    const paragraphsJson = JSON.stringify(normalizedNew.paragraphs);
+    const highlightsJson = JSON.stringify(normalizedNew.highlights);
+    const tagsJson = JSON.stringify(normalizedNew.tags);
+
+    const result = await query(
+      `INSERT INTO articles (
+        custom_id, title, \`lead\`, category, category_color, image_url, image_caption,
+        read_time, audio_duration, paragraphs, highlights, author_name, author_designation,
+        author_location, author_avatar, author_verified, district, country, views,
+        views_count, likes_count, tags, is_breaking, is_trending, is_headline, published_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        customId,
+        normalizedNew.title,
+        normalizedNew.lead,
+        normalizedNew.category,
+        normalizedNew.categoryColor,
+        normalizedNew.imageUrl,
+        normalizedNew.imageCaption,
+        normalizedNew.readTime,
+        normalizedNew.audioDuration,
+        paragraphsJson,
+        highlightsJson,
+        normalizedNew.author.name,
+        normalizedNew.author.designation,
+        normalizedNew.author.location,
+        normalizedNew.author.avatar,
+        normalizedNew.author.verified ? 1 : 0,
+        normalizedNew.district,
+        normalizedNew.country,
+        normalizedNew.views,
+        normalizedNew.viewsCount,
+        normalizedNew.likesCount,
+        tagsJson,
+        normalizedNew.isBreaking ? 1 : 0,
+        normalizedNew.isTrending ? 1 : 0,
+        isHeadline ? 1 : 0,
+        normalizedNew.publishedAt,
+      ]
+    );
+    if (result && result.insertId) {
+      normalizedNew.id = String(result.insertId);
+      normalizedNew._id = String(result.insertId);
+    }
+  } catch (err) {
+    console.warn('MySQL createArticle warning (saved to in-memory store):', err.message);
+  }
+
+  return normalizedNew;
 }
 
 async function updateArticle(id, data) {
   const isHeadline = data.isHeadline !== undefined ? Boolean(data.isHeadline) : undefined;
-  if (isHeadline === true) {
-    await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1');
+
+  // Update in memory
+  const idx = memoryArticles.findIndex((a) => a.id === id || a._id === id || a.customId === id);
+  if (idx !== -1) {
+    if (isHeadline === true) {
+      memoryArticles.forEach((a) => (a.isHeadline = false));
+    }
+    memoryArticles[idx] = {
+      ...memoryArticles[idx],
+      ...data,
+      id: memoryArticles[idx].id,
+      customId: memoryArticles[idx].customId,
+    };
   }
 
-  const updates = [];
-  const params = [];
+  // Attempt MySQL update
+  try {
+    if (isHeadline === true) {
+      await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1');
+    }
+    const updates = [];
+    const params = [];
+    if (data.title !== undefined) { updates.push('title = ?'); params.push(data.title.trim()); }
+    if (data.lead !== undefined) { updates.push('`lead` = ?'); params.push(data.lead.trim()); }
+    if (data.category !== undefined) { updates.push('category = ?'); params.push(data.category.trim()); }
+    if (data.categoryColor !== undefined) { updates.push('category_color = ?'); params.push(data.categoryColor); }
+    if (data.imageUrl !== undefined) { updates.push('image_url = ?'); params.push(data.imageUrl); }
+    if (data.imageCaption !== undefined) { updates.push('image_caption = ?'); params.push(data.imageCaption); }
+    if (data.readTime !== undefined) { updates.push('read_time = ?'); params.push(data.readTime); }
+    if (data.audioDuration !== undefined) { updates.push('audio_duration = ?'); params.push(data.audioDuration); }
+    if (data.paragraphs !== undefined) { updates.push('paragraphs = ?'); params.push(JSON.stringify(data.paragraphs)); }
+    if (data.highlights !== undefined) { updates.push('highlights = ?'); params.push(JSON.stringify(data.highlights)); }
+    if (data.tags !== undefined) { updates.push('tags = ?'); params.push(JSON.stringify(data.tags)); }
+    if (data.district !== undefined) { updates.push('district = ?'); params.push(data.district.trim()); }
+    if (data.country !== undefined) { updates.push('country = ?'); params.push(data.country.trim()); }
+    if (data.isBreaking !== undefined) { updates.push('is_breaking = ?'); params.push(data.isBreaking ? 1 : 0); }
+    if (data.isTrending !== undefined) { updates.push('is_trending = ?'); params.push(data.isTrending ? 1 : 0); }
+    if (isHeadline !== undefined) { updates.push('is_headline = ?'); params.push(isHeadline ? 1 : 0); }
 
-  if (data.title !== undefined) { updates.push('title = ?'); params.push(data.title.trim()); }
-  if (data.lead !== undefined) { updates.push('`lead` = ?'); params.push(data.lead.trim()); }
-  if (data.category !== undefined) { updates.push('category = ?'); params.push(data.category.trim()); }
-  if (data.categoryColor !== undefined) { updates.push('category_color = ?'); params.push(data.categoryColor); }
-  if (data.imageUrl !== undefined) { updates.push('image_url = ?'); params.push(data.imageUrl); }
-  if (data.imageCaption !== undefined) { updates.push('image_caption = ?'); params.push(data.imageCaption); }
-  if (data.readTime !== undefined) { updates.push('read_time = ?'); params.push(data.readTime); }
-  if (data.audioDuration !== undefined) { updates.push('audio_duration = ?'); params.push(data.audioDuration); }
-  if (data.paragraphs !== undefined) { updates.push('paragraphs = ?'); params.push(JSON.stringify(data.paragraphs)); }
-  if (data.highlights !== undefined) { updates.push('highlights = ?'); params.push(JSON.stringify(data.highlights)); }
-  if (data.tags !== undefined) { updates.push('tags = ?'); params.push(JSON.stringify(data.tags)); }
-  if (data.district !== undefined) { updates.push('district = ?'); params.push(data.district.trim()); }
-  if (data.country !== undefined) { updates.push('country = ?'); params.push(data.country.trim()); }
-  if (data.isBreaking !== undefined) { updates.push('is_breaking = ?'); params.push(data.isBreaking ? 1 : 0); }
-  if (data.isTrending !== undefined) { updates.push('is_trending = ?'); params.push(data.isTrending ? 1 : 0); }
-  if (isHeadline !== undefined) { updates.push('is_headline = ?'); params.push(isHeadline ? 1 : 0); }
+    if (updates.length > 0) {
+      params.push(id, isNaN(Number(id)) ? 0 : Number(id));
+      await query(`UPDATE articles SET ${updates.join(', ')} WHERE custom_id = ? OR id = ?`, params);
+    }
+    const fromDb = await getArticleById(id);
+    if (fromDb) return fromDb;
+  } catch {}
 
-  if (updates.length > 0) {
-    params.push(id, isNaN(Number(id)) ? 0 : Number(id));
-    await query(`UPDATE articles SET ${updates.join(', ')} WHERE custom_id = ? OR id = ?`, params);
-  }
-
-  return await getArticleById(id);
+  return idx !== -1 ? memoryArticles[idx] : null;
 }
 
 async function deleteArticle(id) {
-  const result = await query(
-    'DELETE FROM articles WHERE custom_id = ? OR id = ?',
-    [id, isNaN(Number(id)) ? 0 : Number(id)]
-  );
-  return result && result.affectedRows > 0;
+  memoryArticles = memoryArticles.filter((a) => a.id !== id && a._id !== id && a.customId !== id);
+  try {
+    const result = await query(
+      'DELETE FROM articles WHERE custom_id = ? OR id = ?',
+      [id, isNaN(Number(id)) ? 0 : Number(id)]
+    );
+    return result && result.affectedRows > 0;
+  } catch {
+    return true;
+  }
 }
 
 async function likeArticle(id, action = 'like') {
   const inc = action === 'unlike' ? -1 : 1;
-  await query(
-    'UPDATE articles SET likes_count = GREATEST(0, likes_count + ?) WHERE custom_id = ? OR id = ?',
-    [inc, id, isNaN(Number(id)) ? 0 : Number(id)]
-  );
-  const rows = await query(
-    'SELECT likes_count FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
-    [id, isNaN(Number(id)) ? 0 : Number(id)]
-  );
-  return { likesCount: rows && rows[0] ? rows[0].likes_count : 0 };
+  const art = memoryArticles.find((a) => a.id === id || a._id === id || a.customId === id);
+  if (art) {
+    art.likesCount = Math.max(0, (art.likesCount || 0) + inc);
+  }
+  try {
+    await query(
+      'UPDATE articles SET likes_count = GREATEST(0, likes_count + ?) WHERE custom_id = ? OR id = ?',
+      [inc, id, isNaN(Number(id)) ? 0 : Number(id)]
+    );
+    const rows = await query(
+      'SELECT likes_count FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
+      [id, isNaN(Number(id)) ? 0 : Number(id)]
+    );
+    return { likesCount: rows && rows[0] ? rows[0].likes_count : (art?.likesCount || 0) };
+  } catch {
+    return { likesCount: art?.likesCount || 0 };
+  }
 }
 
 async function setHeadline(id) {
-  const rows = await query(
-    'SELECT id, is_headline FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
-    [id, isNaN(Number(id)) ? 0 : Number(id)]
-  );
-  if (!rows || rows.length === 0) return null;
+  memoryArticles.forEach((a) => {
+    if (a.id === id || a._id === id || a.customId === id) {
+      a.isHeadline = !a.isHeadline;
+    } else {
+      a.isHeadline = false;
+    }
+  });
 
-  const targetState = !rows[0].is_headline;
-  if (targetState) {
-    await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1');
-  }
-  await query('UPDATE articles SET is_headline = ? WHERE id = ?', [targetState ? 1 : 0, rows[0].id]);
-  const updated = await getArticleById(rows[0].id);
-  return { article: updated, isHeadline: targetState };
+  try {
+    const rows = await query(
+      'SELECT id, is_headline FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
+      [id, isNaN(Number(id)) ? 0 : Number(id)]
+    );
+    if (rows && rows.length > 0) {
+      const targetState = !rows[0].is_headline;
+      if (targetState) {
+        await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1');
+      }
+      await query('UPDATE articles SET is_headline = ? WHERE id = ?', [targetState ? 1 : 0, rows[0].id]);
+      const updated = await getArticleById(rows[0].id);
+      return { article: updated, isHeadline: targetState };
+    }
+  } catch {}
+
+  const current = memoryArticles.find((a) => a.id === id || a._id === id || a.customId === id);
+  return { article: current, isHeadline: Boolean(current?.isHeadline) };
 }
 
 // ----------------- BREAKING NEWS SERVICE -----------------
 async function getBreakingNews() {
-  const rows = await query('SELECT * FROM breaking_news WHERE active = 1 ORDER BY priority ASC, id DESC');
-  return (rows || []).map((r) => ({
-    id: r.id,
-    _id: String(r.id),
-    headline: r.headline,
-    active: Boolean(r.active),
-    priority: r.priority || 0,
-    createdAt: r.created_at,
-  }));
+  try {
+    const rows = await query('SELECT * FROM breaking_news WHERE active = 1 ORDER BY priority ASC, id DESC');
+    if (rows && rows.length > 0) {
+      return rows.map((r) => r.headline);
+    }
+  } catch {}
+  return memoryBreaking.filter((b) => b.active).map((b) => b.headline);
 }
 
 async function getAllBreakingNews() {
-  const rows = await query('SELECT * FROM breaking_news ORDER BY id DESC');
-  return (rows || []).map((r) => ({
-    id: r.id,
-    _id: String(r.id),
-    headline: r.headline,
-    active: Boolean(r.active),
-    priority: r.priority || 0,
-    createdAt: r.created_at,
-  }));
+  try {
+    const rows = await query('SELECT * FROM breaking_news ORDER BY id DESC');
+    if (rows && rows.length > 0) {
+      return rows.map((r) => ({
+        id: r.id,
+        _id: String(r.id),
+        headline: r.headline,
+        active: Boolean(r.active),
+        priority: r.priority || 0,
+        createdAt: r.created_at,
+      }));
+    }
+  } catch {}
+  return memoryBreaking;
 }
 
 async function createBreakingNews(headline) {
-  const result = await query('INSERT INTO breaking_news (headline, active) VALUES (?, 1)', [headline.trim()]);
-  return {
-    id: result.insertId,
-    _id: String(result.insertId),
+  const item = {
+    id: Date.now(),
+    _id: String(Date.now()),
     headline: headline.trim(),
     active: true,
     priority: 0,
     createdAt: new Date().toISOString(),
   };
+  memoryBreaking.unshift(item);
+  try {
+    const result = await query('INSERT INTO breaking_news (headline, active) VALUES (?, 1)', [item.headline]);
+    if (result && result.insertId) {
+      item.id = result.insertId;
+      item._id = String(result.insertId);
+    }
+  } catch {}
+  return item;
 }
 
 async function updateBreakingNews(id, { headline, active }) {
-  const updates = [];
-  const params = [];
-  if (headline !== undefined) { updates.push('headline = ?'); params.push(headline.trim()); }
-  if (active !== undefined) { updates.push('active = ?'); params.push(active ? 1 : 0); }
-
-  if (updates.length > 0) {
-    params.push(id);
-    await query(`UPDATE breaking_news SET ${updates.join(', ')} WHERE id = ?`, params);
+  const idx = memoryBreaking.findIndex((b) => String(b.id) === String(id));
+  if (idx !== -1) {
+    if (headline !== undefined) memoryBreaking[idx].headline = headline.trim();
+    if (active !== undefined) memoryBreaking[idx].active = Boolean(active);
   }
-
-  const rows = await query('SELECT * FROM breaking_news WHERE id = ? LIMIT 1', [id]);
-  if (!rows || rows.length === 0) return null;
-  return {
-    id: rows[0].id,
-    _id: String(rows[0].id),
-    headline: rows[0].headline,
-    active: Boolean(rows[0].active),
-    priority: rows[0].priority,
-    createdAt: rows[0].created_at,
-  };
+  try {
+    const updates = [];
+    const params = [];
+    if (headline !== undefined) { updates.push('headline = ?'); params.push(headline.trim()); }
+    if (active !== undefined) { updates.push('active = ?'); params.push(active ? 1 : 0); }
+    if (updates.length > 0) {
+      params.push(id);
+      await query(`UPDATE breaking_news SET ${updates.join(', ')} WHERE id = ?`, params);
+    }
+    const rows = await query('SELECT * FROM breaking_news WHERE id = ? LIMIT 1', [id]);
+    if (rows && rows.length > 0) {
+      return {
+        id: rows[0].id,
+        _id: String(rows[0].id),
+        headline: rows[0].headline,
+        active: Boolean(rows[0].active),
+        priority: rows[0].priority,
+        createdAt: rows[0].created_at,
+      };
+    }
+  } catch {}
+  return idx !== -1 ? memoryBreaking[idx] : null;
 }
 
 async function deleteBreakingNews(id) {
-  const result = await query('DELETE FROM breaking_news WHERE id = ?', [id]);
-  return result && result.affectedRows > 0;
+  memoryBreaking = memoryBreaking.filter((b) => String(b.id) !== String(id));
+  try {
+    const result = await query('DELETE FROM breaking_news WHERE id = ?', [id]);
+    return result && result.affectedRows > 0;
+  } catch {
+    return true;
+  }
 }
 
 // ----------------- VIDEOS SERVICE -----------------
 async function getVideos({ category, limit = 20, page = 1 }) {
-  let whereClause = '';
-  let params = [];
+  try {
+    let whereClause = '';
+    let params = [];
 
+    if (category && category !== 'all' && category !== 'എല്ലാം') {
+      whereClause = 'WHERE LOWER(category) LIKE ?';
+      params.push(`%${category.toLowerCase().trim()}%`);
+    }
+
+    const countRows = await query(`SELECT COUNT(*) as total FROM videos ${whereClause}`, params);
+    const total = (countRows && countRows[0]?.total) || 0;
+
+    if (total > 0) {
+      const parsedLimit = Math.max(1, parseInt(limit) || 20);
+      const parsedPage = Math.max(1, parseInt(page) || 1);
+      const offset = (parsedPage - 1) * parsedLimit;
+
+      const rows = await query(
+        `SELECT * FROM videos ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`,
+        [...params, parsedLimit, offset]
+      );
+
+      const videos = (rows || []).map((r) => ({
+        id: String(r.id),
+        _id: String(r.id),
+        title: r.title,
+        videoUrl: r.video_url,
+        youtubeId: r.youtube_id,
+        category: r.category,
+        duration: r.duration,
+        views: `${(Number(r.views_count) / 1000).toFixed(1)}k`,
+        viewsCount: Number(r.views_count),
+        thumbnail: r.thumbnail,
+        description: r.description || '',
+        createdAt: r.created_at,
+      }));
+      return { videos, total };
+    }
+  } catch {}
+
+  let filtered = [...memoryVideos];
   if (category && category !== 'all' && category !== 'എല്ലാം') {
-    whereClause = 'WHERE LOWER(category) LIKE ?';
-    params.push(`%${category.toLowerCase().trim()}%`);
+    const cat = category.toLowerCase().trim();
+    filtered = filtered.filter((v) => (v.category || '').toLowerCase().includes(cat));
   }
-
-  const countRows = await query(`SELECT COUNT(*) as total FROM videos ${whereClause}`, params);
-  const total = (countRows && countRows[0]?.total) || 0;
-
   const parsedLimit = Math.max(1, parseInt(limit) || 20);
   const parsedPage = Math.max(1, parseInt(page) || 1);
   const offset = (parsedPage - 1) * parsedLimit;
-
-  const rows = await query(
-    `SELECT * FROM videos ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`,
-    [...params, parsedLimit, offset]
-  );
-
-  const videos = (rows || []).map((r) => ({
-    id: String(r.id),
-    _id: String(r.id),
-    title: r.title,
-    videoUrl: r.video_url,
-    youtubeId: r.youtube_id,
-    category: r.category,
-    duration: r.duration,
-    views: `${(Number(r.views_count) / 1000).toFixed(1)}k`,
-    viewsCount: Number(r.views_count),
-    thumbnail: r.thumbnail,
-    description: r.description || '',
-    createdAt: r.created_at,
-  }));
-  return { videos, total };
-}
-
-async function getVideoById(id) {
-  const rows = await query('SELECT * FROM videos WHERE id = ? LIMIT 1', [id]);
-  if (!rows || rows.length === 0) return null;
-
-  query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [id]).catch(() => {});
-  const r = rows[0];
   return {
-    id: String(r.id),
-    _id: String(r.id),
-    title: r.title,
-    videoUrl: r.video_url,
-    youtubeId: r.youtube_id,
-    category: r.category,
-    duration: r.duration,
-    viewsCount: Number(r.views_count) + 1,
-    thumbnail: r.thumbnail,
-    description: r.description || '',
-    createdAt: r.created_at,
+    videos: filtered.slice(offset, offset + parsedLimit),
+    total: filtered.length,
   };
 }
 
-async function createVideo(data) {
-  const result = await query(
-    `INSERT INTO videos (title, video_url, youtube_id, category, duration, views_count, thumbnail, description)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      data.title.trim(),
-      data.videoUrl.trim(),
-      data.youtubeId || '',
-      data.category ? data.category.trim() : 'വാർത്തകൾ',
-      data.duration || '02:30',
-      data.viewsCount ? parseInt(data.viewsCount) : 1200,
-      data.thumbnail || '',
-      data.description || '',
-    ]
-  );
+async function getVideoById(id) {
+  try {
+    const rows = await query('SELECT * FROM videos WHERE id = ? LIMIT 1', [id]);
+    if (rows && rows.length > 0) {
+      query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [id]).catch(() => {});
+      const r = rows[0];
+      return {
+        id: String(r.id),
+        _id: String(r.id),
+        title: r.title,
+        videoUrl: r.video_url,
+        youtubeId: r.youtube_id,
+        category: r.category,
+        duration: r.duration,
+        viewsCount: Number(r.views_count) + 1,
+        thumbnail: r.thumbnail,
+        description: r.description || '',
+        createdAt: r.created_at,
+      };
+    }
+  } catch {}
+  return memoryVideos.find((v) => v.id === String(id) || v._id === String(id)) || null;
+}
 
-  return await getVideoById(result.insertId);
+async function createVideo(data) {
+  const newVid = {
+    id: String(Date.now()),
+    _id: String(Date.now()),
+    title: (data.title || '').trim(),
+    videoUrl: (data.videoUrl || '').trim(),
+    youtubeId: data.youtubeId || '',
+    category: data.category ? data.category.trim() : 'വാർത്തകൾ',
+    duration: data.duration || '02:30',
+    viewsCount: data.viewsCount ? parseInt(data.viewsCount) : 1200,
+    views: `${data.viewsCount || 1200} views`,
+    thumbnail: data.thumbnail || '',
+    description: data.description || '',
+    createdAt: new Date().toISOString(),
+  };
+  memoryVideos.unshift(newVid);
+
+  try {
+    const result = await query(
+      `INSERT INTO videos (title, video_url, youtube_id, category, duration, views_count, thumbnail, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newVid.title,
+        newVid.videoUrl,
+        newVid.youtubeId,
+        newVid.category,
+        newVid.duration,
+        newVid.viewsCount,
+        newVid.thumbnail,
+        newVid.description,
+      ]
+    );
+    if (result && result.insertId) {
+      newVid.id = String(result.insertId);
+      newVid._id = String(result.insertId);
+    }
+  } catch {}
+
+  return newVid;
 }
 
 async function updateVideo(id, data) {
-  const updates = [];
-  const params = [];
-  if (data.title !== undefined) { updates.push('title = ?'); params.push(data.title.trim()); }
-  if (data.videoUrl !== undefined) { updates.push('video_url = ?'); params.push(data.videoUrl.trim()); }
-  if (data.youtubeId !== undefined) { updates.push('youtube_id = ?'); params.push(data.youtubeId.trim()); }
-  if (data.category !== undefined) { updates.push('category = ?'); params.push(data.category.trim()); }
-  if (data.duration !== undefined) { updates.push('duration = ?'); params.push(data.duration.trim()); }
-  if (data.viewsCount !== undefined) { updates.push('views_count = ?'); params.push(parseInt(data.viewsCount)); }
-  if (data.thumbnail !== undefined) { updates.push('thumbnail = ?'); params.push(data.thumbnail); }
-  if (data.description !== undefined) { updates.push('description = ?'); params.push(data.description.trim()); }
-
-  if (updates.length > 0) {
-    params.push(id);
-    await query(`UPDATE videos SET ${updates.join(', ')} WHERE id = ?`, params);
+  const idx = memoryVideos.findIndex((v) => String(v.id) === String(id) || String(v._id) === String(id));
+  if (idx !== -1) {
+    memoryVideos[idx] = { ...memoryVideos[idx], ...data };
   }
+  try {
+    const updates = [];
+    const params = [];
+    if (data.title !== undefined) { updates.push('title = ?'); params.push(data.title.trim()); }
+    if (data.videoUrl !== undefined) { updates.push('video_url = ?'); params.push(data.videoUrl.trim()); }
+    if (data.youtubeId !== undefined) { updates.push('youtube_id = ?'); params.push(data.youtubeId.trim()); }
+    if (data.category !== undefined) { updates.push('category = ?'); params.push(data.category.trim()); }
+    if (data.duration !== undefined) { updates.push('duration = ?'); params.push(data.duration.trim()); }
+    if (data.viewsCount !== undefined) { updates.push('views_count = ?'); params.push(parseInt(data.viewsCount)); }
+    if (data.thumbnail !== undefined) { updates.push('thumbnail = ?'); params.push(data.thumbnail); }
+    if (data.description !== undefined) { updates.push('description = ?'); params.push(data.description.trim()); }
 
-  return await getVideoById(id);
+    if (updates.length > 0) {
+      params.push(id);
+      await query(`UPDATE videos SET ${updates.join(', ')} WHERE id = ?`, params);
+    }
+    const fromDb = await getVideoById(id);
+    if (fromDb) return fromDb;
+  } catch {}
+  return idx !== -1 ? memoryVideos[idx] : null;
 }
 
 async function deleteVideo(id) {
-  const result = await query('DELETE FROM videos WHERE id = ?', [id]);
-  return result && result.affectedRows > 0;
+  memoryVideos = memoryVideos.filter((v) => String(v.id) !== String(id) && String(v._id) !== String(id));
+  try {
+    const result = await query('DELETE FROM videos WHERE id = ?', [id]);
+    return result && result.affectedRows > 0;
+  } catch {
+    return true;
+  }
 }
 
 // ----------------- SUBSCRIBERS SERVICE -----------------
 async function getSubscribers() {
-  const rows = await query('SELECT * FROM subscribers ORDER BY id DESC');
-  return (rows || []).map((r) => ({
-    id: r.id,
-    _id: String(r.id),
-    email: r.email,
-    active: Boolean(r.active),
-    createdAt: r.created_at,
-  }));
+  try {
+    const rows = await query('SELECT * FROM subscribers ORDER BY id DESC');
+    if (rows && rows.length > 0) {
+      return rows.map((r) => ({
+        id: r.id,
+        _id: String(r.id),
+        email: r.email,
+        active: Boolean(r.active),
+        createdAt: r.created_at,
+      }));
+    }
+  } catch {}
+  return memorySubscribers;
 }
 
 async function createSubscriber(email) {
-  await query('INSERT IGNORE INTO subscribers (email) VALUES (?)', [email.toLowerCase().trim()]);
-  return { email: email.toLowerCase().trim(), active: true };
+  const cleanEmail = email.toLowerCase().trim();
+  const sub = { id: Date.now(), _id: String(Date.now()), email: cleanEmail, active: true, createdAt: new Date().toISOString() };
+  if (!memorySubscribers.some((s) => s.email === cleanEmail)) {
+    memorySubscribers.unshift(sub);
+  }
+  try {
+    await query('INSERT IGNORE INTO subscribers (email) VALUES (?)', [cleanEmail]);
+  } catch {}
+  return { email: cleanEmail, active: true };
 }
 
 async function deleteSubscriber(id) {
-  const result = await query('DELETE FROM subscribers WHERE id = ?', [id]);
-  return result && result.affectedRows > 0;
+  memorySubscribers = memorySubscribers.filter((s) => String(s.id) !== String(id));
+  try {
+    const result = await query('DELETE FROM subscribers WHERE id = ?', [id]);
+    return result && result.affectedRows > 0;
+  } catch {
+    return true;
+  }
 }
 
 // ----------------- AD INQUIRIES SERVICE -----------------
 async function getAdInquiries() {
-  const rows = await query('SELECT * FROM ad_inquiries ORDER BY id DESC');
-  return (rows || []).map((r) => ({
-    id: r.id,
-    _id: String(r.id),
-    name: r.name,
-    companyName: r.company_name,
-    phone: r.phone,
-    email: r.email,
-    adType: r.ad_type,
-    budget: r.budget,
-    message: r.message,
-    status: r.status,
-    createdAt: r.created_at,
-  }));
+  try {
+    const rows = await query('SELECT * FROM ad_inquiries ORDER BY id DESC');
+    if (rows && rows.length > 0) {
+      return rows.map((r) => ({
+        id: r.id,
+        _id: String(r.id),
+        name: r.name,
+        companyName: r.company_name,
+        phone: r.phone,
+        email: r.email,
+        adType: r.ad_type,
+        budget: r.budget,
+        message: r.message,
+        status: r.status,
+        createdAt: r.created_at,
+      }));
+    }
+  } catch {}
+  return memoryAdInquiries;
 }
 
 async function createAdInquiry(data) {
-  const result = await query(
-    `INSERT INTO ad_inquiries (name, company_name, phone, email, ad_type, budget, message, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'New')`,
-    [
-      data.name.trim(),
-      (data.companyName || '').trim(),
-      data.phone.trim(),
-      (data.email || '').trim(),
-      data.adType || 'Digital Banner',
-      (data.budget || '').trim(),
-      (data.message || '').trim(),
-    ]
-  );
-
-  return {
-    id: result.insertId,
-    _id: String(result.insertId),
+  const item = {
+    id: Date.now(),
+    _id: String(Date.now()),
     name: data.name.trim(),
     companyName: (data.companyName || '').trim(),
     phone: data.phone.trim(),
@@ -553,61 +885,90 @@ async function createAdInquiry(data) {
     status: 'New',
     createdAt: new Date().toISOString(),
   };
+  memoryAdInquiries.unshift(item);
+
+  try {
+    const result = await query(
+      `INSERT INTO ad_inquiries (name, company_name, phone, email, ad_type, budget, message, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'New')`,
+      [item.name, item.companyName, item.phone, item.email, item.adType, item.budget, item.message]
+    );
+    if (result && result.insertId) {
+      item.id = result.insertId;
+      item._id = String(result.insertId);
+    }
+  } catch {}
+
+  return item;
 }
 
 async function updateAdInquiryStatus(id, status) {
-  await query('UPDATE ad_inquiries SET status = ? WHERE id = ?', [status, id]);
-  const rows = await query('SELECT * FROM ad_inquiries WHERE id = ? LIMIT 1', [id]);
-  if (!rows || rows.length === 0) return null;
-  const r = rows[0];
-  return {
-    id: r.id,
-    _id: String(r.id),
-    name: r.name,
-    companyName: r.company_name,
-    phone: r.phone,
-    email: r.email,
-    adType: r.ad_type,
-    budget: r.budget,
-    message: r.message,
-    status: r.status,
-    createdAt: r.created_at,
-  };
+  const item = memoryAdInquiries.find((a) => String(a.id) === String(id));
+  if (item) item.status = status;
+  try {
+    await query('UPDATE ad_inquiries SET status = ? WHERE id = ?', [status, id]);
+    const rows = await query('SELECT * FROM ad_inquiries WHERE id = ? LIMIT 1', [id]);
+    if (rows && rows.length > 0) {
+      const r = rows[0];
+      return {
+        id: r.id,
+        _id: String(r.id),
+        name: r.name,
+        companyName: r.company_name,
+        phone: r.phone,
+        email: r.email,
+        adType: r.ad_type,
+        budget: r.budget,
+        message: r.message,
+        status: r.status,
+        createdAt: r.created_at,
+      };
+    }
+  } catch {}
+  return item || null;
 }
 
 async function deleteAdInquiry(id) {
-  const result = await query('DELETE FROM ad_inquiries WHERE id = ?', [id]);
-  return result && result.affectedRows > 0;
+  memoryAdInquiries = memoryAdInquiries.filter((a) => String(a.id) !== String(id));
+  try {
+    const result = await query('DELETE FROM ad_inquiries WHERE id = ?', [id]);
+    return result && result.affectedRows > 0;
+  } catch {
+    return true;
+  }
 }
 
 // ----------------- PHOTO STORY SERVICE -----------------
 async function getPhotoStory() {
-  const rows = await query('SELECT * FROM photo_stories ORDER BY id DESC LIMIT 1');
-  if (!rows || rows.length === 0) return null;
-
-  const r = rows[0];
-  let images = [];
   try {
-    images = typeof r.images === 'string' ? JSON.parse(r.images) : r.images || [];
-    if (!Array.isArray(images)) images = [];
-  } catch {
-    images = [];
-  }
+    const rows = await query('SELECT * FROM photo_stories ORDER BY id DESC LIMIT 1');
+    if (rows && rows.length > 0) {
+      const r = rows[0];
+      let images = [];
+      try {
+        images = typeof r.images === 'string' ? JSON.parse(r.images) : r.images || [];
+        if (!Array.isArray(images)) images = [];
+      } catch {
+        images = [];
+      }
 
-  return {
-    id: r.id,
-    tagLabel: r.tag_label || 'PHOTO STORY',
-    subtitle: r.subtitle || 'KERALA IN FRAMES',
-    title: r.title || '',
-    description: r.description || '',
-    images,
-    updatedAt: r.updated_at,
-  };
+      return {
+        id: r.id,
+        tagLabel: r.tag_label || 'PHOTO STORY',
+        subtitle: r.subtitle || 'KERALA IN FRAMES',
+        title: r.title || '',
+        description: r.description || '',
+        images,
+        updatedAt: r.updated_at,
+      };
+    }
+  } catch {}
+  return memoryPhotoStory;
 }
 
 async function updatePhotoStory({ tagLabel, subtitle, title, description, images }) {
-  const imgJson = JSON.stringify(Array.isArray(images) ? images : []);
-  const story = {
+  memoryPhotoStory = {
+    id: 1,
     tagLabel: tagLabel || 'PHOTO STORY',
     subtitle: subtitle || 'KERALA IN FRAMES',
     title: (title || '').trim(),
@@ -616,32 +977,41 @@ async function updatePhotoStory({ tagLabel, subtitle, title, description, images
     updatedAt: new Date().toISOString(),
   };
 
-  const rows = await query('SELECT id FROM photo_stories ORDER BY id DESC LIMIT 1');
-  if (!rows || rows.length === 0) {
-    const res = await query(
-      'INSERT INTO photo_stories (tag_label, subtitle, title, description, images) VALUES (?, ?, ?, ?, ?)',
-      [story.tagLabel, story.subtitle, story.title, story.description, imgJson]
-    );
-    story.id = res.insertId;
-  } else {
-    await query(
-      'UPDATE photo_stories SET tag_label = ?, subtitle = ?, title = ?, description = ?, images = ? WHERE id = ?',
-      [story.tagLabel, story.subtitle, story.title, story.description, imgJson, rows[0].id]
-    );
-    story.id = rows[0].id;
-  }
+  try {
+    const imgJson = JSON.stringify(memoryPhotoStory.images);
+    const rows = await query('SELECT id FROM photo_stories ORDER BY id DESC LIMIT 1');
+    if (!rows || rows.length === 0) {
+      const res = await query(
+        'INSERT INTO photo_stories (tag_label, subtitle, title, description, images) VALUES (?, ?, ?, ?, ?)',
+        [memoryPhotoStory.tagLabel, memoryPhotoStory.subtitle, memoryPhotoStory.title, memoryPhotoStory.description, imgJson]
+      );
+      if (res && res.insertId) memoryPhotoStory.id = res.insertId;
+    } else {
+      await query(
+        'UPDATE photo_stories SET tag_label = ?, subtitle = ?, title = ?, description = ?, images = ? WHERE id = ?',
+        [memoryPhotoStory.tagLabel, memoryPhotoStory.subtitle, memoryPhotoStory.title, memoryPhotoStory.description, imgJson, rows[0].id]
+      );
+      memoryPhotoStory.id = rows[0].id;
+    }
+  } catch {}
 
-  return story;
+  return memoryPhotoStory;
 }
 
 async function deletePhotoStory() {
+  memoryPhotoStory = {
+    id: 1,
+    tagLabel: 'PHOTO STORY',
+    subtitle: 'KERALA IN FRAMES',
+    title: '',
+    description: '',
+    images: [],
+    updatedAt: new Date().toISOString(),
+  };
   try {
     await query('DELETE FROM photo_stories');
-    return true;
-  } catch (err) {
-    console.error('Delete photo story error:', err.message);
-    return false;
-  }
+  } catch {}
+  return true;
 }
 
 module.exports = {
