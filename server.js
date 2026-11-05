@@ -155,8 +155,20 @@ app.use((err, req, res, next) => {
 
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`Kerala Desam server running on port ${PORT} with MySQL`);
+  const HOST = process.env.HOST || '0.0.0.0';
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`Kerala Desam server running on http://${HOST}:${PORT} with MySQL`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`⚠️ Port ${PORT} on ${HOST} is in use. Retrying on port ${Number(PORT) + 1}...`);
+      app.listen(Number(PORT) + 1, HOST, () => {
+        console.log(`Kerala Desam server running on http://${HOST}:${Number(PORT) + 1} with MySQL`);
+      });
+    } else {
+      console.error('❌ Server startup error:', err);
+    }
   });
 }
 
