@@ -6,7 +6,9 @@ exports.getBreakingNews = async (req, res) => {
     const headlines = (all === 'true' || all === true)
       ? await mysqlService.getAllBreakingNews()
       : await mysqlService.getBreakingNews();
-    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       count: headlines.length,
@@ -14,7 +16,9 @@ exports.getBreakingNews = async (req, res) => {
     });
   } catch (error) {
     console.warn('getBreakingNews fallback:', error.message);
-    res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       count: 0,

@@ -14,7 +14,9 @@ exports.getArticles = async (req, res) => {
       page,
     });
 
-    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     return res.status(200).json({
       success: true,
@@ -30,7 +32,9 @@ exports.getArticles = async (req, res) => {
     try {
       fallback = await mysqlService.getArticles({ limit: 50, page: 1 });
     } catch {}
-    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       count: (fallback.articles || []).length,
@@ -54,7 +58,9 @@ exports.getArticleById = async (req, res) => {
       });
     }
 
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       article,

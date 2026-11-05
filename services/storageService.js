@@ -162,8 +162,27 @@ async function uploadMedia(bufferOrBase64, originalName = 'upload.jpg', mimeType
     }
     const localFilePath = path.join(uploadDir, path.basename(uniqueKey));
     fs.writeFileSync(localFilePath, fileBuffer);
+
+    const backendBase = (
+      process.env.BACKEND_URL ||
+      process.env.RENDER_EXTERNAL_URL ||
+      'https://kerala-dhesam-admin.onrender.com'
+    ).replace(/\/$/, '');
+    const publicFileUrl = `${backendBase}/uploads/${path.basename(uniqueKey)}`;
+
+    // Resilient fallback for ephemeral cloud hosting (Render / Vercel containers)
+    if (fileBuffer.length <= 400 * 1024 && mimeType.startsWith('image/')) {
+      const dataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+      return {
+        url: dataUri,
+        publicUrl: publicFileUrl,
+        provider: 'resilient-inline-storage',
+        key: uniqueKey,
+      };
+    }
+
     return {
-      url: `/uploads/${path.basename(uniqueKey)}`,
+      url: publicFileUrl,
       provider: 'local-disk',
       key: uniqueKey,
     };

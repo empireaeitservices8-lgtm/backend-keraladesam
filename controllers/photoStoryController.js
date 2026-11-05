@@ -7,14 +7,18 @@ const storageService = require('../services/storageService');
 exports.getPhotoStory = async (req, res) => {
   try {
     const photoStory = await mysqlService.getPhotoStory();
-    res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       photoStory: photoStory || null,
     });
   } catch (error) {
     console.warn('Get photo story warning:', error.message);
-    res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=30');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       photoStory: null,

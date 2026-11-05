@@ -27,7 +27,9 @@ exports.getVideos = async (req, res) => {
       page,
     });
 
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     return res.status(200).json({
       success: true,
@@ -43,7 +45,9 @@ exports.getVideos = async (req, res) => {
     try {
       fallback = await mysqlService.getVideos({ limit: 20, page: 1 });
     } catch {}
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     return res.status(200).json({
       success: true,
       count: (fallback.videos || []).length,

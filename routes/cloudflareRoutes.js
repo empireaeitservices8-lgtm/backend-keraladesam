@@ -8,36 +8,41 @@ const upload = multer({
   limits: { fileSize: 30 * 1024 * 1024 }, // 30MB limit
 });
 
-// @desc    Get Cloudflare R2 / CDN integration status
-// @route   GET /api/cloudflare/status
-// @access  Public
-router.get('/status', (req, res) => {
+const uploadFields = upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'image', maxCount: 1 },
+]);
+
+// @desc    Get storage / Cloudflare integration status
+// @route   GET /api/upload OR /api/cloudflare/status
+router.get(['/', '/status'], (req, res) => {
   return res.status(200).json({
     success: true,
     cloudflare: getCloudflareStatus(),
   });
 });
 
-// @desc    Upload media to Cloudflare R2 / CDN
-// @route   POST /api/cloudflare/upload
-// @access  Public / Admin
-router.post('/upload', upload.single('file'), async (req, res) => {
+// @desc    Upload media to active storage provider (Cloudinary / Cloudflare R2 / Resilient Data-URL)
+// @route   POST /api/upload OR /api/upload/upload OR /api/cloudflare/upload
+router.post(['/', '/upload'], uploadFields, async (req, res) => {
   try {
-    if (!req.file) {
+    const file = req.file || req.files?.file?.[0] || req.files?.image?.[0];
+    if (!file) {
       return res.status(400).json({
         success: false,
         error: 'No file provided for upload',
       });
     }
 
-    const result = await uploadMedia(req.file.buffer, req.file.originalname, req.file.mimetype);
+    const result = await uploadMedia(file.buffer, file.originalname, file.mimetype);
     return res.status(200).json({
       success: true,
       message: 'Media uploaded successfully',
       data: result,
+      url: result.url,
     });
   } catch (error) {
-    console.error('Cloudflare upload error:', error);
+    console.error('Upload error:', error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Failed to upload media',
