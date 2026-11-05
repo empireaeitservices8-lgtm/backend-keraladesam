@@ -69,95 +69,19 @@ function normalizeArticleRow(row) {
 }
 
 // ----------------- RESILIENT HYBRID IN-MEMORY STORE -----------------
-// Seeded automatically with all initial Malayalam news articles, breaking alerts, and video shorts
-let memoryArticles = (initialArticles || []).map((art, idx) => ({
-  _id: art.customId || `news-${idx + 1}`,
-  id: art.customId || `news-${idx + 1}`,
-  customId: art.customId || `news-${idx + 1}`,
-  title: art.title,
-  lead: art.lead || '',
-  category: art.category,
-  categoryColor: art.categoryColor || '#006b9a',
-  imageUrl: art.imageUrl || '',
-  imageCaption: art.imageCaption || '',
-  readTime: art.readTime || '3 മിനിറ്റ് വായന',
-  audioDuration: art.audioDuration || '03:00',
-  paragraphs: Array.isArray(art.paragraphs) ? art.paragraphs : [art.paragraphs || ''],
-  highlights: Array.isArray(art.highlights) ? art.highlights : [],
-  author: {
-    name: art.author?.name || 'കേരളദേശം ന്യൂസ് ഡെസ്ക്',
-    designation: art.author?.designation || 'എഡിറ്റർ',
-    location: art.author?.location || 'കേരളം',
-    avatar: art.author?.avatar || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=400&q=80',
-    verified: Boolean(art.author?.verified),
-  },
-  district: art.district || '',
-  country: art.country || '',
-  views: String(art.views || '1.5k'),
-  viewsCount: typeof art.views === 'number' ? art.views : 1500,
-  likesCount: 24,
-  tags: Array.isArray(art.tags) ? art.tags : [],
-  isBreaking: Boolean(art.breaking),
-  isTrending: Boolean(art.trending),
-  isHeadline: idx === 0,
-  publishedAt: new Date(Date.now() - idx * 3600000).toLocaleString('ml-IN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }),
-  createdAt: new Date(Date.now() - idx * 3600000).toISOString(),
-}));
-
-let memoryBreaking = (initialBreaking || []).map((txt, idx) => ({
-  id: idx + 1,
-  _id: String(idx + 1),
-  headline: txt,
-  active: true,
-  priority: idx,
-  createdAt: new Date().toISOString(),
-}));
-
-let memoryVideos = (initialVideos || []).map((v, idx) => ({
-  id: String(idx + 1),
-  _id: String(idx + 1),
-  title: v.title,
-  videoUrl: v.videoUrl,
-  youtubeId: v.youtubeId || '',
-  category: v.category || 'വാർത്തകൾ',
-  duration: v.duration || '02:30',
-  viewsCount: v.viewsCount || 1200,
-  views: v.views || '150K',
-  thumbnail: v.thumbnail || '',
-  description: v.description || '',
-  createdAt: new Date().toISOString(),
-}));
-
+// Clean, empty state: dynamic content is created and managed directly by the admin
+let memoryArticles = [];
+let memoryBreaking = [];
+let memoryVideos = [];
 let memoryPhotoStory = {
   id: 1,
   tagLabel: 'PHOTO STORY',
   subtitle: 'KERALA IN FRAMES',
-  title: 'കുട്ടനാടൻ കായൽസൗന്ദര്യം: പ്രകൃതിയുടെ മാന്ത്രിക സ്പർശം',
-  description: 'ആലപ്പുഴയുടെ ഹൃദയതുടിപ്പായ കുട്ടനാട്ടിലെ കായൽക്കാഴ്ചകളും കാർഷിക ഗ്രാമജീവിതവും പച്ചപ്പണിഞ്ഞ പ്രകൃതിഭംഗിയും.',
-  images: [
-    {
-      url: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?auto=format&fit=crop&w=600&q=80',
-      caption: 'കുട്ടനാട് 1',
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1593693397690-362cb9666fc2?auto=format&fit=crop&w=600&q=80',
-      caption: 'കുട്ടനാട് 2',
-    },
-    {
-      url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-      caption: 'കുട്ടനാട് 3',
-    },
-  ],
+  title: '',
+  description: '',
+  images: [],
   updatedAt: new Date().toISOString(),
 };
-
 let memorySubscribers = [];
 let memoryAdInquiries = [];
 
@@ -275,12 +199,15 @@ async function getArticles({ category, district, search, trending, limit = 50, p
         `SELECT * FROM articles ${whereSQL} ORDER BY is_headline DESC, id DESC LIMIT ? OFFSET ?`,
         selectParams
       );
-      if (rows && rows.length > 0) {
-        return {
-          articles: rows.map(normalizeArticleRow),
-          total,
-        };
-      }
+      return {
+        articles: (rows || []).map(normalizeArticleRow),
+        total,
+      };
+    } else {
+      return {
+        articles: [],
+        total: 0,
+      };
     }
   } catch (err) {
     console.warn('MySQL getArticles fallback:', err.message);
@@ -501,13 +428,19 @@ async function updateArticle(id, data) {
 }
 
 async function deleteArticle(id) {
-  memoryArticles = memoryArticles.filter((a) => a.id !== id && a._id !== id && a.customId !== id);
+  const initialMemCount = memoryArticles.length;
+  memoryArticles = memoryArticles.filter(
+    (a) => String(a.id) !== String(id) && String(a._id) !== String(id) && String(a.customId) !== String(id)
+  );
+  const deletedFromMem = memoryArticles.length < initialMemCount;
   try {
+    const numId = isNaN(Number(id)) ? 0 : Number(id);
     const result = await query(
       'DELETE FROM articles WHERE custom_id = ? OR id = ?',
-      [id, isNaN(Number(id)) ? 0 : Number(id)]
+      [String(id), numId]
     );
-    return result && result.affectedRows > 0;
+    const deletedFromDb = result && result.affectedRows > 0;
+    return Boolean(deletedFromDb || deletedFromMem);
   } catch {
     return true;
   }
@@ -567,7 +500,7 @@ async function setHeadline(id) {
 async function getBreakingNews() {
   try {
     const rows = await query('SELECT * FROM breaking_news WHERE active = 1 ORDER BY priority ASC, id DESC');
-    if (rows && rows.length > 0) {
+    if (rows) {
       return rows.map((r) => r.headline);
     }
   } catch {}
@@ -577,7 +510,7 @@ async function getBreakingNews() {
 async function getAllBreakingNews() {
   try {
     const rows = await query('SELECT * FROM breaking_news ORDER BY id DESC');
-    if (rows && rows.length > 0) {
+    if (rows) {
       return rows.map((r) => ({
         id: r.id,
         _id: String(r.id),
@@ -642,10 +575,13 @@ async function updateBreakingNews(id, { headline, active }) {
 }
 
 async function deleteBreakingNews(id) {
+  const initialMemCount = memoryBreaking.length;
   memoryBreaking = memoryBreaking.filter((b) => String(b.id) !== String(id) && String(b._id) !== String(id));
+  const deletedFromMem = memoryBreaking.length < initialMemCount;
   try {
     const result = await query('DELETE FROM breaking_news WHERE id = ?', [id]);
-    return result && result.affectedRows > 0;
+    const deletedFromDb = result && result.affectedRows > 0;
+    return Boolean(deletedFromDb || deletedFromMem);
   } catch {
     return true;
   }
@@ -690,6 +626,8 @@ async function getVideos({ category, limit = 20, page = 1 }) {
         createdAt: r.created_at,
       }));
       return { videos, total };
+    } else {
+      return { videos: [], total: 0 };
     }
   } catch {}
 
@@ -800,10 +738,13 @@ async function updateVideo(id, data) {
 }
 
 async function deleteVideo(id) {
+  const initialMemCount = memoryVideos.length;
   memoryVideos = memoryVideos.filter((v) => String(v.id) !== String(id) && String(v._id) !== String(id));
+  const deletedFromMem = memoryVideos.length < initialMemCount;
   try {
     const result = await query('DELETE FROM videos WHERE id = ?', [id]);
-    return result && result.affectedRows > 0;
+    const deletedFromDb = result && result.affectedRows > 0;
+    return Boolean(deletedFromDb || deletedFromMem);
   } catch {
     return true;
   }
@@ -960,6 +901,16 @@ async function getPhotoStory() {
         description: r.description || '',
         images,
         updatedAt: r.updated_at,
+      };
+    } else {
+      return {
+        id: 1,
+        tagLabel: 'PHOTO STORY',
+        subtitle: 'KERALA IN FRAMES',
+        title: '',
+        description: '',
+        images: [],
+        updatedAt: new Date().toISOString(),
       };
     }
   } catch {}
