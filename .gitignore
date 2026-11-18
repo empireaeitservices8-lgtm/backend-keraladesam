@@ -8,3 +8,5 @@ yarn-error.log*
 .idea/
 .vscode/
 *.log
+.env.migration
+*.backup.json

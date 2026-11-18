@@ -108,6 +108,52 @@ let memoryPhotoStory = {
 };
 let memorySubscribers = [];
 let memoryAdInquiries = [];
+let memoryDeletedArticleIds = [];
+let memoryDeletedBreakingIds = [];
+let memoryDeletedVideoIds = [];
+
+function isArticleDeleted(itemOrId) {
+  if (!itemOrId || !memoryDeletedArticleIds.length) return false;
+  if (typeof itemOrId === 'string' || typeof itemOrId === 'number') {
+    const cleanId = String(itemOrId).trim();
+    return Boolean(cleanId && cleanId !== 'undefined' && cleanId !== 'null' && memoryDeletedArticleIds.includes(cleanId));
+  }
+  const id = itemOrId.id !== undefined && itemOrId.id !== null ? String(itemOrId.id).trim() : '';
+  const customId = (itemOrId.customId || itemOrId.custom_id) ? String(itemOrId.customId || itemOrId.custom_id).trim() : '';
+  const mongoId = itemOrId._id ? String(itemOrId._id).trim() : '';
+  if (id && id !== 'undefined' && id !== 'null' && memoryDeletedArticleIds.includes(id)) return true;
+  if (customId && customId !== 'undefined' && customId !== 'null' && memoryDeletedArticleIds.includes(customId)) return true;
+  if (mongoId && mongoId !== 'undefined' && mongoId !== 'null' && memoryDeletedArticleIds.includes(mongoId)) return true;
+  return false;
+}
+
+function isBreakingDeleted(itemOrText) {
+  if (!itemOrText || !memoryDeletedBreakingIds.length) return false;
+  if (typeof itemOrText === 'string') {
+    const clean = itemOrText.trim();
+    return Boolean(clean && clean !== 'undefined' && clean !== 'null' && memoryDeletedBreakingIds.includes(clean));
+  }
+  const id = itemOrText.id !== undefined && itemOrText.id !== null ? String(itemOrText.id).trim() : '';
+  const headline = itemOrText.headline ? String(itemOrText.headline).trim() : '';
+  if (id && id !== 'undefined' && id !== 'null' && memoryDeletedBreakingIds.includes(id)) return true;
+  if (headline && memoryDeletedBreakingIds.includes(headline)) return true;
+  return false;
+}
+
+function isVideoDeleted(itemOrId) {
+  if (!itemOrId || !memoryDeletedVideoIds.length) return false;
+  if (typeof itemOrId === 'string' || typeof itemOrId === 'number') {
+    const cleanId = String(itemOrId).trim();
+    return Boolean(cleanId && cleanId !== 'undefined' && cleanId !== 'null' && memoryDeletedVideoIds.includes(cleanId));
+  }
+  const id = itemOrId.id !== undefined && itemOrId.id !== null ? String(itemOrId.id).trim() : '';
+  const youtubeId = (itemOrId.youtubeId || itemOrId.youtube_id) ? String(itemOrId.youtubeId || itemOrId.youtube_id).trim() : '';
+  const mongoId = itemOrId._id ? String(itemOrId._id).trim() : '';
+  if (id && id !== 'undefined' && id !== 'null' && memoryDeletedVideoIds.includes(id)) return true;
+  if (youtubeId && youtubeId !== 'undefined' && youtubeId !== 'null' && memoryDeletedVideoIds.includes(youtubeId)) return true;
+  if (mongoId && mongoId !== 'undefined' && mongoId !== 'null' && memoryDeletedVideoIds.includes(mongoId)) return true;
+  return false;
+}
 
 function savePortalContentToFile() {
   try {
@@ -120,6 +166,9 @@ function savePortalContentToFile() {
       photoStory: memoryPhotoStory,
       subscribers: memorySubscribers,
       adInquiries: memoryAdInquiries,
+      deletedArticleIds: memoryDeletedArticleIds,
+      deletedBreakingIds: memoryDeletedBreakingIds,
+      deletedVideoIds: memoryDeletedVideoIds,
       updatedAt: new Date().toISOString(),
     };
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(payload, null, 2), 'utf8');
@@ -133,10 +182,32 @@ function loadPortalContentFromFile() {
     if (fs.existsSync(STORAGE_FILE)) {
       const content = fs.readFileSync(STORAGE_FILE, 'utf8');
       const data = JSON.parse(content);
-      if (data && Array.isArray(data.articles) && data.articles.length > 0) {
-        memoryArticles = data.articles;
-        memoryBreaking = Array.isArray(data.breaking) ? data.breaking : [];
-        memoryVideos = Array.isArray(data.videos) ? data.videos : [];
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.deletedArticleIds)) {
+          memoryDeletedArticleIds = data.deletedArticleIds
+            .map((x) => String(x || '').trim())
+            .filter((x) => x && x !== 'undefined' && x !== 'null');
+        }
+        if (Array.isArray(data.deletedBreakingIds)) {
+          memoryDeletedBreakingIds = data.deletedBreakingIds
+            .map((x) => String(x || '').trim())
+            .filter((x) => x && x !== 'undefined' && x !== 'null');
+        }
+        if (Array.isArray(data.deletedVideoIds)) {
+          memoryDeletedVideoIds = data.deletedVideoIds
+            .map((x) => String(x || '').trim())
+            .filter((x) => x && x !== 'undefined' && x !== 'null');
+        }
+
+        if (Array.isArray(data.articles)) {
+          memoryArticles = data.articles.filter((a) => !isArticleDeleted(a));
+        }
+        if (Array.isArray(data.breaking)) {
+          memoryBreaking = data.breaking.filter((b) => !isBreakingDeleted(b));
+        }
+        if (Array.isArray(data.videos)) {
+          memoryVideos = data.videos.filter((v) => !isVideoDeleted(v));
+        }
         if (data.photoStory) memoryPhotoStory = data.photoStory;
         if (Array.isArray(data.subscribers)) memorySubscribers = data.subscribers;
         if (Array.isArray(data.adInquiries)) memoryAdInquiries = data.adInquiries;
@@ -147,7 +218,7 @@ function loadPortalContentFromFile() {
     console.warn('loadPortalContentFromFile warning:', e.message);
   }
 
-  // Seed default data if storage file does not exist or has 0 articles
+  // Seed default data only if storage file does not exist at all
   memoryArticles = (initialArticles || []).map((art, idx) => ({
     ...art,
     _id: art.customId || String(Date.now() - idx * 1000),
@@ -291,7 +362,7 @@ async function createUser({ name, email, password, role, avatar }) {
 }
 
 // ----------------- ARTICLES SERVICE -----------------
-async function getArticles({ category, district, search, trending, limit = 50, page = 1 }) {
+async function getArticles({ category, district, search, trending, limit = 50, page = 1 } = {}) {
   try {
     let whereClauses = [];
     let params = [];
@@ -330,9 +401,12 @@ async function getArticles({ category, district, search, trending, limit = 50, p
         `SELECT * FROM articles ${whereSQL} ORDER BY is_headline DESC, id DESC LIMIT ? OFFSET ?`,
         selectParams
       );
+      const normalized = (rows || [])
+        .map(normalizeArticleRow)
+        .filter((a) => !isArticleDeleted(a));
       return {
-        articles: (rows || []).map(normalizeArticleRow),
-        total,
+        articles: normalized,
+        total: Math.max(0, total - memoryDeletedArticleIds.length),
       };
     } else {
       return {
@@ -345,7 +419,7 @@ async function getArticles({ category, district, search, trending, limit = 50, p
   }
 
   // Resilient fallback from memoryArticles
-  let filtered = [...memoryArticles];
+  let filtered = memoryArticles.filter((a) => !isArticleDeleted(a));
   if (category && category !== 'all' && category !== 'എല്ലാം') {
     const cat = category.toLowerCase().trim();
     filtered = filtered.filter((a) => (a.category || '').toLowerCase().includes(cat));
@@ -377,18 +451,28 @@ async function getArticles({ category, district, search, trending, limit = 50, p
 
 async function getArticleById(id) {
   if (!id) return null;
+  const cleanId = String(id).trim();
+  if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return null;
+  if (isArticleDeleted(cleanId)) return null;
   try {
     const rows = await query(
       'SELECT * FROM articles WHERE custom_id = ? OR id = ? LIMIT 1',
-      [id, isNaN(Number(id)) ? 0 : Number(id)]
+      [cleanId, isNaN(Number(cleanId)) ? 0 : Number(cleanId)]
     );
     if (rows && rows.length > 0) {
+      if (isArticleDeleted(rows[0])) {
+        return null;
+      }
       query('UPDATE articles SET views_count = views_count + 1 WHERE id = ?', [rows[0].id]).catch(() => {});
       return normalizeArticleRow(rows[0]);
     }
   } catch {}
 
-  const found = memoryArticles.find((a) => a.id === id || a._id === id || a.customId === id);
+  const found = memoryArticles.find(
+    (a) =>
+      (a.id === cleanId || a._id === cleanId || a.customId === cleanId) &&
+      !isArticleDeleted(a)
+  );
   if (found) {
     found.viewsCount = (found.viewsCount || 1) + 1;
     return found;
@@ -561,17 +645,38 @@ async function updateArticle(id, data) {
 }
 
 async function deleteArticle(id) {
+  if (!id) return false;
+  const cleanId = String(id).trim();
+  if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return false;
+  const numId = isNaN(Number(cleanId)) ? 0 : Number(cleanId);
   const initialMemCount = memoryArticles.length;
-  memoryArticles = memoryArticles.filter(
-    (a) => String(a.id) !== String(id) && String(a._id) !== String(id) && String(a.customId) !== String(id)
+
+  // Track all identifier aliases (id, _id, customId) so it can never reappear
+  const target = memoryArticles.find(
+    (a) => String(a.id) === cleanId || String(a._id) === cleanId || String(a.customId) === cleanId
   );
+  if (target) {
+    if (target.id && String(target.id) !== 'undefined' && !memoryDeletedArticleIds.includes(String(target.id))) {
+      memoryDeletedArticleIds.push(String(target.id));
+    }
+    if (target._id && String(target._id) !== 'undefined' && !memoryDeletedArticleIds.includes(String(target._id))) {
+      memoryDeletedArticleIds.push(String(target._id));
+    }
+    if (target.customId && String(target.customId) !== 'undefined' && !memoryDeletedArticleIds.includes(String(target.customId))) {
+      memoryDeletedArticleIds.push(String(target.customId));
+    }
+  }
+  if (!memoryDeletedArticleIds.includes(cleanId)) {
+    memoryDeletedArticleIds.push(cleanId);
+  }
+
+  memoryArticles = memoryArticles.filter((a) => !isArticleDeleted(a));
   savePortalContentToFile();
   const deletedFromMem = memoryArticles.length < initialMemCount;
   try {
-    const numId = isNaN(Number(id)) ? 0 : Number(id);
     const result = await query(
       'DELETE FROM articles WHERE custom_id = ? OR id = ?',
-      [String(id), numId]
+      [cleanId, numId]
     );
     const deletedFromDb = result && result.affectedRows > 0;
     return Boolean(deletedFromDb || deletedFromMem);
@@ -636,27 +741,37 @@ async function getBreakingNews() {
   try {
     const rows = await query('SELECT * FROM breaking_news WHERE active = 1 ORDER BY priority ASC, id DESC');
     if (rows) {
-      return rows.map((r) => r.headline);
+      return rows
+        .filter(
+          (r) =>
+            !memoryDeletedBreakingIds.includes(String(r.id)) &&
+            !memoryDeletedBreakingIds.includes(String(r.headline))
+        )
+        .map((r) => r.headline);
     }
   } catch {}
-  return memoryBreaking.filter((b) => b.active).map((b) => b.headline);
+  return memoryBreaking
+    .filter((b) => b.active && !isBreakingDeleted(b))
+    .map((b) => b.headline);
 }
 
 async function getAllBreakingNews() {
   try {
     const rows = await query('SELECT * FROM breaking_news ORDER BY id DESC');
     if (rows) {
-      return rows.map((r) => ({
-        id: r.id,
-        _id: String(r.id),
-        headline: r.headline,
-        active: Boolean(r.active),
-        priority: r.priority || 0,
-        createdAt: r.created_at,
-      }));
+      return rows
+        .filter((r) => !isBreakingDeleted(r))
+        .map((r) => ({
+          id: r.id,
+          _id: String(r.id),
+          headline: r.headline,
+          active: Boolean(r.active),
+          priority: r.priority || 0,
+          createdAt: r.created_at,
+        }));
     }
   } catch {}
-  return memoryBreaking;
+  return memoryBreaking.filter((b) => !isBreakingDeleted(b));
 }
 
 async function createBreakingNews(headline) {
@@ -681,7 +796,8 @@ async function createBreakingNews(headline) {
 }
 
 async function updateBreakingNews(id, { headline, active }) {
-  const idx = memoryBreaking.findIndex((b) => String(b.id) === String(id) || String(b._id) === String(id));
+  const cleanId = String(id).trim();
+  const idx = memoryBreaking.findIndex((b) => String(b.id) === cleanId || String(b._id) === cleanId);
   if (idx !== -1) {
     if (headline !== undefined) memoryBreaking[idx].headline = headline.trim();
     if (active !== undefined) memoryBreaking[idx].active = Boolean(active);
@@ -693,10 +809,10 @@ async function updateBreakingNews(id, { headline, active }) {
     if (headline !== undefined) { updates.push('headline = ?'); params.push(headline.trim()); }
     if (active !== undefined) { updates.push('active = ?'); params.push(active ? 1 : 0); }
     if (updates.length > 0) {
-      params.push(id);
+      params.push(cleanId);
       await query(`UPDATE breaking_news SET ${updates.join(', ')} WHERE id = ?`, params);
     }
-    const rows = await query('SELECT * FROM breaking_news WHERE id = ? LIMIT 1', [id]);
+    const rows = await query('SELECT * FROM breaking_news WHERE id = ? LIMIT 1', [cleanId]);
     if (rows && rows.length > 0) {
       return {
         id: rows[0].id,
@@ -712,12 +828,35 @@ async function updateBreakingNews(id, { headline, active }) {
 }
 
 async function deleteBreakingNews(id) {
+  if (!id) return false;
+  const cleanId = String(id).trim();
+  if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return false;
+  const numId = isNaN(Number(cleanId)) ? 0 : Number(cleanId);
   const initialMemCount = memoryBreaking.length;
-  memoryBreaking = memoryBreaking.filter((b) => String(b.id) !== String(id) && String(b._id) !== String(id));
+
+  const target = memoryBreaking.find(
+    (b) => String(b.id) === cleanId || String(b._id) === cleanId || b.headline === cleanId
+  );
+  if (target) {
+    if (target.id && String(target.id) !== 'undefined' && !memoryDeletedBreakingIds.includes(String(target.id))) {
+      memoryDeletedBreakingIds.push(String(target.id));
+    }
+    if (target._id && String(target._id) !== 'undefined' && !memoryDeletedBreakingIds.includes(String(target._id))) {
+      memoryDeletedBreakingIds.push(String(target._id));
+    }
+    if (target.headline && !memoryDeletedBreakingIds.includes(String(target.headline))) {
+      memoryDeletedBreakingIds.push(String(target.headline));
+    }
+  }
+  if (!memoryDeletedBreakingIds.includes(cleanId)) {
+    memoryDeletedBreakingIds.push(cleanId);
+  }
+
+  memoryBreaking = memoryBreaking.filter((b) => !isBreakingDeleted(b));
   savePortalContentToFile();
   const deletedFromMem = memoryBreaking.length < initialMemCount;
   try {
-    const result = await query('DELETE FROM breaking_news WHERE id = ?', [id]);
+    const result = await query('DELETE FROM breaking_news WHERE id = ? OR headline = ?', [numId, cleanId]);
     const deletedFromDb = result && result.affectedRows > 0;
     return Boolean(deletedFromDb || deletedFromMem);
   } catch {
@@ -726,7 +865,7 @@ async function deleteBreakingNews(id) {
 }
 
 // ----------------- VIDEOS SERVICE -----------------
-async function getVideos({ category, limit = 20, page = 1 }) {
+async function getVideos({ category, limit = 20, page = 1 } = {}) {
   try {
     let whereClause = '';
     let params = [];
@@ -749,27 +888,29 @@ async function getVideos({ category, limit = 20, page = 1 }) {
         [...params, parsedLimit, offset]
       );
 
-      const videos = (rows || []).map((r) => ({
-        id: String(r.id),
-        _id: String(r.id),
-        title: r.title,
-        videoUrl: r.video_url,
-        youtubeId: r.youtube_id,
-        category: r.category,
-        duration: r.duration,
-        views: `${(Number(r.views_count) / 1000).toFixed(1)}k`,
-        viewsCount: Number(r.views_count),
-        thumbnail: r.thumbnail,
-        description: r.description || '',
-        createdAt: r.created_at,
-      }));
-      return { videos, total };
+      const videos = (rows || [])
+        .filter((r) => !isVideoDeleted(r))
+        .map((r) => ({
+          id: String(r.id),
+          _id: String(r.id),
+          title: r.title,
+          videoUrl: r.video_url,
+          youtubeId: r.youtube_id,
+          category: r.category,
+          duration: r.duration,
+          views: `${(Number(r.views_count) / 1000).toFixed(1)}k`,
+          viewsCount: Number(r.views_count),
+          thumbnail: r.thumbnail,
+          description: r.description || '',
+          createdAt: r.created_at,
+        }));
+      return { videos, total: Math.max(0, total - memoryDeletedVideoIds.length) };
     } else {
       return { videos: [], total: 0 };
     }
   } catch {}
 
-  let filtered = [...memoryVideos];
+  let filtered = memoryVideos.filter((v) => !isVideoDeleted(v));
   if (category && category !== 'all' && category !== 'എല്ലാം') {
     const cat = category.toLowerCase().trim();
     filtered = filtered.filter((v) => (v.category || '').toLowerCase().includes(cat));
@@ -784,10 +925,17 @@ async function getVideos({ category, limit = 20, page = 1 }) {
 }
 
 async function getVideoById(id) {
+  if (!id) return null;
+  const cleanId = String(id).trim();
+  if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return null;
+  if (isVideoDeleted(cleanId)) return null;
   try {
-    const rows = await query('SELECT * FROM videos WHERE id = ? LIMIT 1', [id]);
+    const rows = await query('SELECT * FROM videos WHERE id = ? LIMIT 1', [cleanId]);
     if (rows && rows.length > 0) {
-      query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [id]).catch(() => {});
+      if (isVideoDeleted(rows[0])) {
+        return null;
+      }
+      query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [cleanId]).catch(() => {});
       const r = rows[0];
       return {
         id: String(r.id),
@@ -804,7 +952,13 @@ async function getVideoById(id) {
       };
     }
   } catch {}
-  return memoryVideos.find((v) => v.id === String(id) || v._id === String(id)) || null;
+  return (
+    memoryVideos.find(
+      (v) =>
+        (v.id === cleanId || v._id === cleanId || v.youtubeId === cleanId) &&
+        !isVideoDeleted(v)
+    ) || null
+  );
 }
 
 async function createVideo(data) {
@@ -878,12 +1032,35 @@ async function updateVideo(id, data) {
 }
 
 async function deleteVideo(id) {
+  if (!id) return false;
+  const cleanId = String(id).trim();
+  if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return false;
+  const numId = isNaN(Number(cleanId)) ? 0 : Number(cleanId);
   const initialMemCount = memoryVideos.length;
-  memoryVideos = memoryVideos.filter((v) => String(v.id) !== String(id) && String(v._id) !== String(id));
+
+  const target = memoryVideos.find(
+    (v) => String(v.id) === cleanId || String(v._id) === cleanId || v.youtubeId === cleanId || v.videoUrl === cleanId
+  );
+  if (target) {
+    if (target.id && String(target.id) !== 'undefined' && !memoryDeletedVideoIds.includes(String(target.id))) {
+      memoryDeletedVideoIds.push(String(target.id));
+    }
+    if (target._id && String(target._id) !== 'undefined' && !memoryDeletedVideoIds.includes(String(target._id))) {
+      memoryDeletedVideoIds.push(String(target._id));
+    }
+    if (target.youtubeId && !memoryDeletedVideoIds.includes(String(target.youtubeId))) {
+      memoryDeletedVideoIds.push(String(target.youtubeId));
+    }
+  }
+  if (!memoryDeletedVideoIds.includes(cleanId)) {
+    memoryDeletedVideoIds.push(cleanId);
+  }
+
+  memoryVideos = memoryVideos.filter((v) => !isVideoDeleted(v));
   savePortalContentToFile();
   const deletedFromMem = memoryVideos.length < initialMemCount;
   try {
-    const result = await query('DELETE FROM videos WHERE id = ?', [id]);
+    const result = await query('DELETE FROM videos WHERE id = ? OR youtube_id = ? OR video_url = ?', [numId, cleanId, cleanId]);
     const deletedFromDb = result && result.affectedRows > 0;
     return Boolean(deletedFromDb || deletedFromMem);
   } catch {
@@ -1109,6 +1286,10 @@ async function deletePhotoStory() {
 }
 
 module.exports = {
+  // Helpers
+  isArticleDeleted,
+  isBreakingDeleted,
+  isVideoDeleted,
   // Auth
   getUserByEmail,
   getUserById,

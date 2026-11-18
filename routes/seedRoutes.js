@@ -11,6 +11,9 @@ const handleSeed = async (req, res) => {
 
     for (const item of initialArticles) {
       try {
+        if (mysqlService.isArticleDeleted && mysqlService.isArticleDeleted(item.customId)) {
+          continue;
+        }
         const rows = await query('SELECT id FROM articles WHERE custom_id = ? LIMIT 1', [item.customId]);
         if (!rows || rows.length === 0) {
           await mysqlService.createArticle(item);

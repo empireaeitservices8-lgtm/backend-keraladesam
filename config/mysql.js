@@ -19,10 +19,35 @@ const dbConfig = {
   ssl: sslConfig,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
-  connectTimeout: 3000,
+  connectTimeout: 2000,
 };
 
+const isCloudHosting = Boolean(process.env.VERCEL || process.env.RENDER);
+const hasExternalDb = Boolean(
+  process.env.DB_HOST &&
+    process.env.DB_HOST !== '127.0.0.1' &&
+    process.env.DB_HOST !== 'localhost'
+);
+
 let pool = null;
+let isDbAvailable = null; // null = untried, true = operational, false = offline/unreachable
+let lastDbAttempt = 0;
+const DB_RETRY_COOLDOWN_MS = 30000; // 30 seconds circuit breaker
+
+function canAttemptDb() {
+  // If in cloud hosting (Render/Vercel) without external DB_HOST, 127.0.0.1:3306 does not exist.
+  // Never attempt connection - fail instantly (0ms) instead of hanging 3000ms!
+  if (isCloudHosting && !hasExternalDb) {
+    return false;
+  }
+  // If previously failed (local MySQL offline or cloud DB unreachable), cooldown before retrying
+  if (isDbAvailable === false) {
+    if (Date.now() - lastDbAttempt < DB_RETRY_COOLDOWN_MS) {
+      return false;
+    }
+  }
+  return true;
+}
 
 function getPool() {
   if (!pool) {
@@ -32,17 +57,32 @@ function getPool() {
 }
 
 async function query(sql, params = []) {
-  const p = getPool();
-  const [results] = await p.query(sql, params);
-  return results;
+  if (!canAttemptDb()) {
+    throw new Error('Database service unavailable or running in cloud without external DB_HOST');
+  }
+
+  try {
+    const p = getPool();
+    const [results] = await p.query(sql, params);
+    isDbAvailable = true;
+    return results;
+  } catch (err) {
+    isDbAvailable = false;
+    lastDbAttempt = Date.now();
+    throw err;
+  }
 }
 
 async function testConnection() {
+  if (!canAttemptDb()) return false;
   try {
     const p = getPool();
     const [rows] = await p.query('SELECT 1 as connected');
+    isDbAvailable = true;
     return Boolean(rows && rows[0] && rows[0].connected === 1);
   } catch (err) {
+    isDbAvailable = false;
+    lastDbAttempt = Date.now();
     console.error('MySQL Test Connection Failed:', err.message);
     return false;
   }
@@ -53,14 +93,10 @@ let isInitialized = false;
 async function initMySQLTables() {
   if (isInitialized) return true;
 
-  // On Vercel / Render cloud hosting, do not attempt blocking connection to local machine (127.0.0.1)
-  if (
-    (process.env.VERCEL || process.env.RENDER) &&
-    (!process.env.DB_HOST ||
-      process.env.DB_HOST === '127.0.0.1' ||
-      process.env.DB_HOST === 'localhost')
-  ) {
-    console.log('ℹ️ Cloud environment detected without external DB_HOST. Skipping local MySQL table creation.');
+  if (!canAttemptDb()) {
+    if (isCloudHosting && !hasExternalDb) {
+      console.log('ℹ️ Cloud environment detected without external DB_HOST. Operating with resilient persistent storage layer.');
+    }
     return false;
   }
 
