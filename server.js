@@ -132,6 +132,7 @@ app.use('/api/ads', require('./routes/adRoutes'));
 app.use('/api/photo-story', require('./routes/photoStoryRoutes'));
 app.use('/api/cloudflare', require('./routes/cloudflareRoutes'));
 app.use('/api/upload', require('./routes/cloudflareRoutes'));
+app.use('/api/livetv', require('./routes/liveTvRoutes'));
 
 app.use((req, res) => {
   res.status(404).json({

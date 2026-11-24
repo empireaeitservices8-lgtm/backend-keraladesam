@@ -275,7 +275,7 @@ async function getUserByEmail(email) {
         },
       };
     }
-  } catch {}
+  } catch { }
 
   // Resilient fallback for cloud environments without persistent external DB
   if (
@@ -320,7 +320,7 @@ async function getUserById(id) {
         avatar: u.avatar || '',
       };
     }
-  } catch {}
+  } catch { }
   return {
     _id: '1',
     id: '1',
@@ -344,7 +344,7 @@ async function createUser({ name, email, password, role, avatar }) {
       [cleanName, email.toLowerCase().trim(), hashedPassword, role || 'editor', av]
     );
     if (result && result.insertId) insertId = String(result.insertId);
-  } catch {}
+  } catch { }
 
   return {
     _id: insertId,
@@ -463,10 +463,10 @@ async function getArticleById(id) {
       if (isArticleDeleted(rows[0])) {
         return null;
       }
-      query('UPDATE articles SET views_count = views_count + 1 WHERE id = ?', [rows[0].id]).catch(() => {});
+      query('UPDATE articles SET views_count = views_count + 1 WHERE id = ?', [rows[0].id]).catch(() => { });
       return normalizeArticleRow(rows[0]);
     }
-  } catch {}
+  } catch { }
 
   const found = memoryArticles.find(
     (a) =>
@@ -538,7 +538,7 @@ async function createArticle(data) {
   // Attempt MySQL persistence asynchronously
   try {
     if (isHeadline) {
-      await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1').catch(() => {});
+      await query('UPDATE articles SET is_headline = 0 WHERE is_headline = 1').catch(() => { });
     }
     const paragraphsJson = JSON.stringify(normalizedNew.paragraphs);
     const highlightsJson = JSON.stringify(normalizedNew.highlights);
@@ -639,7 +639,7 @@ async function updateArticle(id, data) {
     }
     const fromDb = await getArticleById(id);
     if (fromDb) return fromDb;
-  } catch {}
+  } catch { }
 
   return idx !== -1 ? memoryArticles[idx] : null;
 }
@@ -730,7 +730,7 @@ async function setHeadline(id) {
       const updated = await getArticleById(rows[0].id);
       return { article: updated, isHeadline: targetState };
     }
-  } catch {}
+  } catch { }
 
   const current = memoryArticles.find((a) => a.id === id || a._id === id || a.customId === id);
   return { article: current, isHeadline: Boolean(current?.isHeadline) };
@@ -749,7 +749,7 @@ async function getBreakingNews() {
         )
         .map((r) => r.headline);
     }
-  } catch {}
+  } catch { }
   return memoryBreaking
     .filter((b) => b.active && !isBreakingDeleted(b))
     .map((b) => b.headline);
@@ -770,7 +770,7 @@ async function getAllBreakingNews() {
           createdAt: r.created_at,
         }));
     }
-  } catch {}
+  } catch { }
   return memoryBreaking.filter((b) => !isBreakingDeleted(b));
 }
 
@@ -791,7 +791,7 @@ async function createBreakingNews(headline) {
       item.id = result.insertId;
       item._id = String(result.insertId);
     }
-  } catch {}
+  } catch { }
   return item;
 }
 
@@ -823,7 +823,7 @@ async function updateBreakingNews(id, { headline, active }) {
         createdAt: rows[0].created_at,
       };
     }
-  } catch {}
+  } catch { }
   return idx !== -1 ? memoryBreaking[idx] : null;
 }
 
@@ -908,7 +908,7 @@ async function getVideos({ category, limit = 20, page = 1 } = {}) {
     } else {
       return { videos: [], total: 0 };
     }
-  } catch {}
+  } catch { }
 
   let filtered = memoryVideos.filter((v) => !isVideoDeleted(v));
   if (category && category !== 'all' && category !== 'എല്ലാം') {
@@ -935,7 +935,7 @@ async function getVideoById(id) {
       if (isVideoDeleted(rows[0])) {
         return null;
       }
-      query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [cleanId]).catch(() => {});
+      query('UPDATE videos SET views_count = views_count + 1 WHERE id = ?', [cleanId]).catch(() => { });
       const r = rows[0];
       return {
         id: String(r.id),
@@ -951,7 +951,7 @@ async function getVideoById(id) {
         createdAt: r.created_at,
       };
     }
-  } catch {}
+  } catch { }
   return (
     memoryVideos.find(
       (v) =>
@@ -998,7 +998,7 @@ async function createVideo(data) {
       newVid.id = String(result.insertId);
       newVid._id = String(result.insertId);
     }
-  } catch {}
+  } catch { }
 
   return newVid;
 }
@@ -1027,7 +1027,7 @@ async function updateVideo(id, data) {
     }
     const fromDb = await getVideoById(id);
     if (fromDb) return fromDb;
-  } catch {}
+  } catch { }
   return idx !== -1 ? memoryVideos[idx] : null;
 }
 
@@ -1081,7 +1081,7 @@ async function getSubscribers() {
         createdAt: r.created_at,
       }));
     }
-  } catch {}
+  } catch { }
   return memorySubscribers;
 }
 
@@ -1093,7 +1093,7 @@ async function createSubscriber(email) {
   }
   try {
     await query('INSERT IGNORE INTO subscribers (email) VALUES (?)', [cleanEmail]);
-  } catch {}
+  } catch { }
   return { email: cleanEmail, active: true };
 }
 
@@ -1126,7 +1126,7 @@ async function getAdInquiries() {
         createdAt: r.created_at,
       }));
     }
-  } catch {}
+  } catch { }
   return memoryAdInquiries;
 }
 
@@ -1156,7 +1156,7 @@ async function createAdInquiry(data) {
       item.id = result.insertId;
       item._id = String(result.insertId);
     }
-  } catch {}
+  } catch { }
 
   return item;
 }
@@ -1183,7 +1183,7 @@ async function updateAdInquiryStatus(id, status) {
         createdAt: r.created_at,
       };
     }
-  } catch {}
+  } catch { }
   return item || null;
 }
 
@@ -1231,7 +1231,7 @@ async function getPhotoStory() {
         updatedAt: new Date().toISOString(),
       };
     }
-  } catch {}
+  } catch { }
   return memoryPhotoStory;
 }
 
@@ -1263,7 +1263,7 @@ async function updatePhotoStory({ tagLabel, subtitle, title, description, images
       );
       memoryPhotoStory.id = rows[0].id;
     }
-  } catch {}
+  } catch { }
 
   return memoryPhotoStory;
 }
@@ -1281,8 +1281,42 @@ async function deletePhotoStory() {
   savePortalContentToFile();
   try {
     await query('DELETE FROM photo_stories');
-  } catch {}
+  } catch { }
   return true;
+}
+
+// ----------------- LIVE TV SERVICE -----------------
+let memoryLiveTv = {
+  videoId: '',
+  title: 'കേരളദേശം 24x7 HD',
+  updatedAt: new Date().toISOString(),
+};
+
+async function getLiveTv() {
+  try {
+    const rows = await query('SELECT * FROM settings WHERE `key` = ? LIMIT 1', ['livetv']);
+    if (rows && rows.length > 0 && rows[0].value) {
+      return JSON.parse(rows[0].value);
+    }
+  } catch { }
+  return memoryLiveTv;
+}
+
+async function updateLiveTv({ videoId, title }) {
+  memoryLiveTv = {
+    videoId: (videoId || '').trim(),
+    title: title || 'കേരളദേശം 24x7 HD',
+    updatedAt: new Date().toISOString(),
+  };
+  savePortalContentToFile();
+  try {
+    const val = JSON.stringify(memoryLiveTv);
+    await query(
+      'INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = ?',
+      ['livetv', val, val]
+    );
+  } catch { }
+  return memoryLiveTv;
 }
 
 module.exports = {
@@ -1327,4 +1361,6 @@ module.exports = {
   getPhotoStory,
   updatePhotoStory,
   deletePhotoStory,
+  getLiveTv,
+  updateLiveTv,
 };

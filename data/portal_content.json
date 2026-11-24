@@ -13,8 +13,16 @@
   },
   "subscribers": [],
   "adInquiries": [],
-  "deletedArticleIds": [],
+  "deletedArticleIds": [
+    "news-mw5x0irb-w6ur4",
+    "pravasi-eid-holidays",
+    "malayalam-cinema-global-box-office",
+    "un-climate-summit-declaration",
+    "thiruvananthapuram-metro",
+    "kerala-budget-infra",
+    "wayanad-tunnel"
+  ],
   "deletedBreakingIds": [],
   "deletedVideoIds": [],
-  "updatedAt": "2026-11-24T04:40:00.000Z"
+  "updatedAt": "2026-11-24T07:23:58.960Z"
 }
